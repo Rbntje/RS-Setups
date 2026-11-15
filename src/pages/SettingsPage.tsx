@@ -132,7 +132,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     try {
       const text = await file.text();
       await onImportBackup(text);
-      setMsg('Backup imported and organized within 200 MB limit.');
+      setMsg('Backup imported.');
     } catch (error) {
       setErr(error instanceof Error ? error.message : 'Invalid backup file.');
     } finally {
@@ -148,7 +148,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     }
     await onResetWorkspace();
     setConfirmReset(false);
-    setMsg('Garage wiped clean (0 setups, 2025 & 2026 folders ready).');
+    setMsg('Garage reset.');
   };
 
   return (
@@ -156,7 +156,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       <div className="px-0.5">
         <h1 className="text-[22px] font-bold tracking-tight text-[#0A192F]">Settings</h1>
         <p className="text-xs text-[#526581]">
-          Live on-device AI monitor, 200 MB phone storage cap &amp; .IPA download.
+          AI, storage, app preferences, and direct install.
         </p>
       </div>
 
@@ -172,7 +172,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       )}
 
-      {/* LIVE REAL-TIME CODED AI STATUS */}
       <section className="ios-card rounded-[24px] p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -180,7 +179,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <Bot className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-[#0A192F]">RS Coded AI · Live</h2>
+              <h2 className="text-sm font-bold text-[#0A192F]">AI Organizer</h2>
               <div className="text-[11px] text-[#526581]">
                 {stats.aiLearnedCount} learned adjustment{stats.aiLearnedCount === 1 ? '' : 's'}
               </div>
@@ -196,7 +195,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         <div className="rounded-2xl bg-[#F2F2F7] p-3 flex items-start gap-2">
           <Activity className="w-4 h-4 text-[#007AFF] shrink-0 mt-0.5" />
           <div className="min-w-0">
-            <div className="text-[10.5px] font-bold text-[#64748B]">Real-Time Background Task</div>
+            <div className="text-[10.5px] font-bold text-[#64748B]">Background status</div>
             <div className="text-xs font-semibold text-[#0A192F] leading-snug mt-0.5">
               {liveAiActivity}
             </div>
@@ -214,12 +213,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </button>
       </section>
 
-      {/* 200 MB STORAGE BUDGET MONITOR */}
       <section className="ios-card rounded-[24px] p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <HardDrive className="w-4 h-4 text-[#007AFF] shrink-0" />
-            <h2 className="text-sm font-bold text-[#0A192F] truncate">Phone Storage (200 MB)</h2>
+            <h2 className="text-sm font-bold text-[#0A192F] truncate">Phone Storage</h2>
           </div>
           <span className="font-mono-tabular text-xs font-bold text-[#007AFF] whitespace-nowrap shrink-0">
             {formatStorageBytes(storageStats.totalBytes)} / 200 MB
@@ -240,8 +238,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
 
         <p className="text-[11px] text-[#526581] leading-relaxed">
-          RS AI automatically deduplicates weights, merges duplicate logs, and archives stale
-          intermediate snapshots so phone storage never grows past 200 MB.
+          AI automatically keeps storage lean for the 200 MB device limit.
         </p>
 
         <div className="grid grid-cols-3 gap-1.5 text-center">
@@ -266,11 +263,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       </section>
 
-      {/* Install Phone App & Direct .IPA Download */}
       <section className="ios-card rounded-[24px] p-4 space-y-3">
         <div className="flex items-center gap-1.5">
           <Smartphone className="w-4 h-4 text-[#007AFF]" />
-          <h2 className="text-sm font-bold text-[#0A192F]">iPhone App &amp; .IPA Download</h2>
+          <h2 className="text-sm font-bold text-[#0A192F]">iPhone App &amp; .IPA</h2>
         </div>
         <PWAInstallButton variant="full" />
         <IpaDownloadCard
@@ -282,7 +278,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         />
       </section>
 
-      {/* Simple App Preferences (Zero Accounts / Zero Wide Mode) */}
       <form onSubmit={handleSave} className="ios-card rounded-[24px] p-4 space-y-3">
         <h2 className="text-sm font-bold text-[#0A192F]">App Preferences</h2>
 
@@ -331,7 +326,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </button>
       </form>
 
-      {/* Backup & Clean Reset */}
       <section className="ios-card rounded-[24px] p-4 space-y-2.5">
         <div className="grid grid-cols-2 gap-2">
           <button
