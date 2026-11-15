@@ -1,11 +1,23 @@
-<div align="center">
+# RS Setups
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+**RS Setups** is a 100% local on-device iPhone & web setup assistant for **EA Sports F1 25** (**2025 Cars** and **2026 Season Pack**).
 
-  <h1>Built with AI Studio</h2>
+- **100% On-Device & Account-Free:** Starts completely clean from scratch with zero accounts, driver names, team names, or external servers.
+- **Folders & Custom Organization:** Automatic `2025` and `2026` folders plus custom folders, setup naming, parameter review & editing before saving, and multi-criteria sorting.
+- **Self-Coded Setup AI + 200 MB Memory Guard:** Custom TypeScript setup engine & live optimizer (`src/engine/setupAi.ts` + `src/storage/storageOptimizer.ts`) with a strict 200 MB storage cap.
+- **Phone-First Experience & Direct `.IPA` Download:** Always presented in native iPhone format (393px frame on desktop with Website Admin & `.IPA` download companion; edge-to-edge iOS app on phone).
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## Quick Commands
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+```bash
+npm install
+npm test        # Unit tests (engine, coded AI, parser, IPA resolver, localStore, 200MB optimizer)
+npm run lint    # TypeScript typecheck
+npm run build   # Build production frontend + offline PWA
+npm run dev     # Start local preview on http://localhost:3000
+```
 
-</div>
+## Dutch Guides
+
+- [`docs/INSTALLATIE-NL.md`](docs/INSTALLATIE-NL.md) — Google AI Studio → GitHub → GitHub Pages & iPhone `.IPA`
+- [`docs/IPA-GUIDE-NL.md`](docs/IPA-GUIDE-NL.md) — Sideloading & `.IPA` details

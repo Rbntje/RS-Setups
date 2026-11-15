@@ -1,0 +1,965 @@
+# RS SETUPS — COMPLETE APPLICATION BUILD
+
+You are an expert full-stack developer, iOS developer, UI/UX designer and sim racing setup engineer.
+
+Your task is to build a complete, production-quality application called **RS Setups (Rubentje Setups)**.
+
+This is a personal racing setup application designed for EA Sports F1 25 and its 2026 Season Pack cars.
+
+IMPORTANT: You must actually build the application in the connected GitHub repository. Do not just generate a plan, a README or a visual mockup.
+
+Create the complete source code, backend, database configuration, iOS project, GitHub Actions workflows, assets and documentation.
+
+Use the existing `main` branch. Inspect the repository before making changes and preserve anything that is still useful.
+
+The application must be functional, connected to its backend and ready to deploy after I complete the documented account configuration.
+
+---
+
+# 1. APPLICATION IDENTITY
+
+**Application name:** RS Setups  
+**Full name:** Rubentje Setups  
+**Team association:** Fermaxo Racing
+
+RS Setups is a personal setup assistant.
+
+Its main purpose is to find, generate and improve F1 setups based on the user's individual driving preferences.
+
+Supported game versions:
+
+1. EA Sports F1 25 — original 2025 cars.
+2. EA Sports F1 25 — 2026 Season Pack cars.
+
+The user must explicitly select the version before generating a setup.
+
+Keep their setup databases, rules and preferences separated between the two versions.
+
+Do not incorrectly present the 2026 Season Pack as a standalone EA Sports F1 26 game.
+
+# 2. LANGUAGE
+
+The entire application must be in **English**.
+
+This includes:
+- Navigation.
+- Buttons.
+- Menus.
+- Setup questions.
+- Setup explanations.
+- Feedback.
+- Notifications.
+- Account pages.
+- Error messages.
+- Settings.
+- All other visible application text.
+
+Do not mix English and Dutch.
+
+However, all installation, deployment and configuration documentation intended for me must be written in clear, simple Dutch.
+
+Explain technical terminology when necessary.
+
+# 3. DESIGN — LIQUID GLASS
+
+I want an exceptionally polished and modern design.
+
+The design should be inspired by Apple's Liquid Glass aesthetic, but adapted to a professional motorsport setup application.
+
+Main colours:
+- Blue.
+- White.
+- Light blue.
+- Dark blue.
+- Subtle transparent surfaces.
+
+Design requirements:
+
+- Smooth animations throughout the application.
+- Beautiful transitions between pages.
+- Glass-like cards and surfaces.
+- Subtle blur effects.
+- Rounded corners.
+- Premium typography.
+- Modern icons.
+- Soft shadows.
+- Beautiful loading animations.
+- Elegant interactive buttons.
+- Subtle animated backgrounds where appropriate.
+
+The app should feel like a premium combination of an Apple application and professional motorsport software.
+
+Do not make it look like a generic AI-generated dashboard.
+
+Avoid excessive gradients, neon colours and clutter.
+
+Make it mobile-first, with excellent support for modern iPhones, tablets and desktop browsers.
+
+Respect accessibility settings, including reduced-motion preferences.
+
+# 4. THE SETUP ENGINE — NO EXTERNAL AI API
+
+This is one of the most important requirements.
+
+Build an intelligent, custom-coded setup engine.
+
+I do NOT want:
+- OpenAI API.
+- ChatGPT API.
+- Gemini API.
+- Paid AI services.
+- External language-model API keys.
+- Monthly AI subscriptions.
+
+Build the intelligence directly into the application.
+
+Use:
+- TypeScript.
+- JavaScript algorithms.
+- Weighted scoring.
+- Rule-based reasoning.
+- Adaptive questionnaires.
+- Setup comparisons.
+- Historical feedback.
+- Personal preference models.
+- Research data.
+
+The engine should behave like a specialised setup assistant.
+
+It must understand the relationship between:
+- Aerodynamics.
+- Transmission.
+- Suspension geometry.
+- Suspension.
+- Brakes.
+- Tyre pressures.
+- Track characteristics.
+- Weather.
+- Driving preferences.
+
+It must explain the reasoning behind its recommendations.
+
+Do not simply generate random setup numbers.
+
+A setup must always respect the actual in-game settings, valid ranges and available increments for the selected game version.
+
+Maintain separate, verifiable configuration datasets for the 2025 cars and 2026 Season Pack cars.
+
+If a value cannot be verified, do not pretend it is correct.
+
+The engine should distinguish between a personally suitable setup and a setup that is objectively the fastest. Never guarantee lap times.
+
+# 5. INITIAL SETUP WIZARD
+
+On the first launch, introduce the user to RS Setups.
+
+Start a personalised setup questionnaire.
+
+The questionnaire should take approximately 2–5 minutes.
+
+Ask questions one at a time, with smooth transitions.
+
+Examples:
+
+- Do you prefer higher top speed or more cornering grip?
+- How important is rear-end stability?
+- Do you prefer a predictable or aggressive car?
+- Do you experience understeer?
+- Do you experience oversteer?
+- How important is tyre wear?
+- Do you prioritise qualifying pace or race consistency?
+- How confident are you when driving on the limit?
+
+Ask adaptive follow-up questions when necessary.
+
+For example, if the user reports oversteer, ask whether it happens:
+- During corner entry.
+- During the middle of a corner.
+- During corner exit.
+
+Do not ask irrelevant questions.
+
+At the end, create a personal driving profile.
+
+Store this profile permanently in Cloudflare D1.
+
+The user must be able to edit their preferences later.
+
+# 6. SETUP GENERATION
+
+Create a complete setup generator.
+
+The user must be able to select:
+
+- Game version.
+- Circuit.
+- Weather.
+- Session type.
+- Personal driving profile.
+
+Available session types should include:
+- Qualifying.
+- Race.
+- Time Trial.
+- Practice.
+
+Support separate dry and wet setups.
+
+For a race, allow relevant preferences such as tyre preservation and consistency.
+
+Generate all applicable in-game setup settings.
+
+Display:
+
+- Full setup.
+- Personal compatibility score.
+- Explanation for each important adjustment.
+- Advantages.
+- Possible disadvantages.
+- Source information.
+- Setup type and game version.
+
+Make copying the complete setup easy with one button.
+
+Allow users to save and favourite setups.
+
+Provide a clear loading sequence while the setup engine works.
+
+# 7. ONLINE SETUP RESEARCH
+
+Build a research system that operates through Cloudflare Workers.
+
+It must investigate publicly accessible setup information online.
+
+Potential sources include:
+- Public setup databases.
+- Community setup pages.
+- Publicly accessible racing forums.
+- RSS feeds.
+- Publicly accessible setup repositories.
+- User-submitted setup URLs.
+
+The research system should collect:
+
+- Circuit.
+- Game version.
+- Weather.
+- Session type.
+- Setup values.
+- Source URL.
+- Date collected.
+- Relevant information about the setup.
+
+The research system must compare different sources and identify useful patterns.
+
+IMPORTANT:
+
+Do not pretend to have performed an internet search if no information was retrieved.
+
+Do not invent sources or setup values.
+
+Respect website terms, robots.txt rules and access restrictions. Do not bypass paywalls or access controls.
+
+Do not scrape search engines or websites in prohibited ways.
+
+Because this project must not use paid search APIs, build a source-adapter system that works with supported public pages, feeds and manually submitted URLs.
+
+Make it easy to add more supported research sources in the future.
+
+If a source is unavailable, show an appropriate status.
+
+## Automatic research
+
+When the application opens:
+
+- Perform a lightweight check of the research database.
+- Determine whether the available information is outdated.
+- Start a refresh only when useful and allowed by the configured refresh interval.
+- Do not block the user from using the application while research runs.
+- Avoid repeatedly downloading the same information.
+
+Also include a manual button called "Refresh Research".
+
+Store retrieved research results in Cloudflare D1.
+
+Display source links and last-updated timestamps.
+
+The research system should become more useful as its source database grows.
+
+# 8. PERSONAL FEEDBACK AND CONTINUOUS IMPROVEMENT
+
+After a driving session, allow the user to submit feedback.
+
+Make this extremely easy.
+
+Possible feedback:
+
+- More top speed.
+- More cornering grip.
+- Less understeer.
+- Less oversteer.
+- More rear stability.
+- Better traction.
+- Better braking stability.
+- Less tyre wear.
+- Better qualifying pace.
+- Better race consistency.
+
+The setup engine must process this feedback.
+
+For every new version:
+
+1. Preserve the previous setup.
+2. Store the new feedback.
+3. Calculate which adjustments are appropriate.
+4. Generate the next setup version.
+5. Show the differences.
+6. Explain why the changes were made.
+7. Update the personal preference model.
+
+Build a setup history system.
+
+Users must be able to compare setups and restore previous versions.
+
+Do not completely change a setup when only one small adjustment is needed.
+
+# 9. THE MAIN APPLICATION SCREENS
+
+Build the following screens.
+
+## Home
+
+Show:
+- Personal greeting.
+- Most recently used game version.
+- Most recently selected circuit.
+- Last generated setup.
+- Favourite setups.
+- Recent feedback.
+- Research status.
+- Create Setup button.
+- Continue where you left off.
+
+## Create Setup
+
+Provide the complete setup-generation flow.
+
+## My Setups
+
+Show all saved setups.
+
+Support:
+- Search.
+- Filtering.
+- Favourites.
+- Game-version filtering.
+- Circuit filtering.
+- Setup history.
+
+## Setup Details
+
+Show:
+- Every setup value.
+- Personal compatibility score.
+- Setup explanation.
+- Research sources.
+- Feedback button.
+- Compare button.
+- Copy button.
+- Save button.
+
+## Driving Profile
+
+Display personal preferences and driving characteristics.
+
+Allow the user to change their preferences.
+
+## Research
+
+Display:
+- Research results.
+- Source websites.
+- Last update.
+- Supported research sources.
+- Refresh button.
+
+## Settings
+
+Include:
+- Account settings.
+- Personal preferences.
+- Team settings where relevant.
+- Application settings.
+- Account security.
+
+Use a modern, compact navigation layout.
+
+# 10. DATABASE — PERMANENT ONLINE MEMORY
+
+This is absolutely essential.
+
+I do NOT want permanent user data stored on my iPhone.
+
+Use **Cloudflare D1** as the permanent database.
+
+Use **Cloudflare Workers** as the backend API.
+
+Do not use Firebase, Supabase or another paid external database.
+
+All permanent information must be stored online.
+
+The database should contain:
+
+- Users.
+- User preferences.
+- Driving profiles.
+- Selected game versions.
+- Circuits.
+- Saved setups.
+- Setup versions.
+- Feedback.
+- Favourites.
+- Circuit notes.
+- Research sources.
+- Research results.
+- Research timestamps.
+- Account settings.
+
+When a user removes and reinstalls the application, their information must remain available after logging in again.
+
+When a user opens RS Setups on another device, the same account data must be loaded.
+
+Support at least two separate user accounts.
+
+Each account must have its own private personal setup profile.
+
+Do not allow one user to access another user's private setups or feedback.
+
+## Storage rules
+
+Never use:
+- localStorage for permanent data.
+- IndexedDB for permanent data.
+- Browser storage for permanent setup histories.
+- iPhone storage for permanent preferences.
+- Local JSON files as the actual user database.
+
+All user data must be retrieved through the backend.
+
+Temporary data in application memory is permitted.
+
+You may cache static application files for performance, but never use an offline cache as the source of truth for user information.
+
+A secure native iOS Keychain entry may be used solely for authentication credentials or refresh tokens when required. It must never contain the actual setup database or personal driving history.
+
+Use secure authentication, password hashing, protected sessions, validation and account-level access controls.
+
+Do not invent insecure authentication implementations.
+
+# 11. BACKEND ARCHITECTURE
+
+Use:
+
+- Cloudflare Workers.
+- Cloudflare D1.
+- Wrangler.
+- TypeScript.
+
+Create a clean API architecture.
+
+Include:
+- Authentication endpoints.
+- User profile endpoints.
+- Setup endpoints.
+- Feedback endpoints.
+- Research endpoints.
+- Favourites.
+- Setup history.
+- Health/status endpoint.
+
+Use appropriate validation and error handling.
+
+Configure CORS for:
+- GitHub Pages preview.
+- Native iOS application.
+- Local development.
+
+Never expose secret values in frontend code.
+
+Use environment variables and Cloudflare secrets where appropriate.
+
+Keep database migrations versioned.
+
+Make database backup and export procedures part of the documentation.
+
+The system should be designed to remain usable on Cloudflare's Free plan.
+
+Avoid unnecessary requests, expensive operations and excessive research refreshes.
+
+Do not automatically activate paid services.
+
+# 12. PROJECT STRUCTURE
+
+Organise the repository professionally.
+
+Use a structure similar to:
+
+- src/
+- src/components/
+- src/pages/
+- src/styles/
+- src/engine/
+- src/research/
+- src/api/
+- src/database/
+- public/
+- public/icons/
+- worker/
+- worker/src/
+- worker/migrations/
+- ios/
+- scripts/
+- docs/
+- .github/workflows/
+
+Adapt the structure where technically appropriate.
+
+Keep the frontend, backend and native iOS configuration organised.
+
+Do not make the project unnecessarily complicated.
+
+# 13. GITHUB PAGES — WEB PREVIEW
+
+GitHub Pages is my preview environment.
+
+It is not my main iPhone distribution method.
+
+Build a separate GitHub Actions workflow that:
+
+1. Checks out the repository.
+2. Installs dependencies.
+3. Runs tests.
+4. Builds the frontend.
+5. Configures the correct GitHub Pages base path.
+6. Publishes the frontend to GitHub Pages.
+
+It must automatically run after changes are pushed to `main`.
+
+Add manual deployment support where appropriate.
+
+Make sure the application works under a repository subpath, not only at the root of a domain.
+
+The web preview must communicate with the same Cloudflare backend as the native iOS app.
+
+Include clear loading states and useful error messages when the backend is not configured yet.
+
+# 14. NATIVE IPHONE APPLICATION — REAL IPA
+
+I want a real native iOS application.
+
+Use Capacitor to package the shared application frontend into an iOS project.
+
+Do not make the IPA the same thing as a renamed ZIP file.
+
+Create a proper native iOS project with:
+
+- App name: RS Setups.
+- Correct bundle identifier.
+- App icon.
+- Native launch screen.
+- Proper iOS configuration.
+- Version number.
+- iPhone-safe layouts.
+- Correct safe-area handling.
+- Native navigation integration where appropriate.
+
+The web preview and the native iOS app must use the same source code, backend API and online database.
+
+Do not create two independent applications.
+
+## GitHub Actions iOS workflow
+
+Create a separate workflow:
+
+`.github/workflows/build-ios.yml`
+
+Use a macOS GitHub Actions runner with a compatible installed Xcode version.
+
+The workflow must:
+
+1. Check out the main branch.
+2. Install dependencies.
+3. Build the frontend.
+4. Synchronise the frontend with Capacitor.
+5. Build the native iOS application.
+6. Package the application into a properly structured unsigned IPA.
+7. Upload the IPA as a downloadable GitHub Actions artifact.
+
+Allow manual triggering through `workflow_dispatch`.
+
+Also support automatic builds from `main`, with sensible concurrency and build caching.
+
+## IPA signing
+
+I sign my own IPA files.
+
+Therefore, build an unsigned IPA that I can download and sign myself.
+
+Do not require an Apple signing certificate just to generate the unsigned build.
+
+Make the archive structure suitable for subsequent signing with an appropriate iOS signing tool.
+
+Do not pretend an unsigned IPA is ready to install. Clearly explain that I must sign it before installation.
+
+Do not embed my certificates, private keys or signing passwords in the repository.
+
+Optionally support a separate automated signing configuration through GitHub Secrets, but this must not be required for the standard unsigned build.
+
+## Artifact delivery
+
+After the workflow completes successfully:
+
+- Make the IPA downloadable from GitHub Actions.
+- Give it a clear filename, such as `RS-Setups-unsigned.ipa`.
+- Include the app version in the artifact information.
+- Include build logs when useful.
+
+Explain exactly where I can find and download the IPA.
+
+# 15. PROGRESSIVE WEB APP
+
+Also make the web version a proper PWA.
+
+Include:
+- Web manifest.
+- Suitable app icons.
+- Service worker.
+- Application shell caching.
+- Mobile optimisation.
+- Installability on supported browsers.
+
+Keep this as an additional installation option.
+
+Do not let PWA caching create a second source of truth for personal information.
+
+# 16. GITHUB ACTIONS WORKFLOWS
+
+Create separate, properly maintained workflows.
+
+At minimum:
+
+1. `deploy-pages.yml` — build and deploy the preview.
+2. `build-ios.yml` — build and package the unsigned iPhone IPA.
+3. `deploy-worker.yml` — deploy the Cloudflare Worker when its secrets are configured.
+4. `test.yml` — run relevant tests.
+
+Use appropriate permissions and secure secret handling.
+
+Use `workflow_dispatch` where useful.
+
+Make the workflows understandable and maintainable.
+
+The Cloudflare deployment workflow must use a Cloudflare API token and account ID stored securely as GitHub Actions Secrets.
+
+This Cloudflare deployment token is NOT an AI API key. It is only used to authorise deployment.
+
+Never place it in source code.
+
+The frontend build must not depend on a secret that would be exposed to website visitors.
+
+If a required secret is missing, provide a clear error message explaining which configuration step is missing.
+
+# 17. CLOUDFLARE CONFIGURATION — COMPLETE DUTCH GUIDE
+
+This is an extremely important requirement.
+
+I am not an experienced backend developer.
+
+Create a comprehensive Dutch step-by-step guide named:
+
+`docs/INSTALLATIE-NL.md`
+
+I want to understand exactly how to configure the entire application.
+
+Do not just tell me to "configure Cloudflare".
+
+Explain every step as though I am doing it for the first time.
+
+The guide must include the following sections.
+
+## A. Create a Cloudflare account
+
+Explain:
+- Where to go.
+- How to register.
+- Which plan to choose.
+- How to get started with the Free plan.
+- Which dashboard page to open.
+- What I should see.
+
+Do not assume that I already have a Cloudflare account.
+
+## B. Install the required tools on Windows
+
+Explain how to install:
+- Node.js LTS.
+- Git.
+- A code editor if needed.
+- Wrangler through the project dependencies.
+
+Give exact download links from official websites.
+
+Explain how to open Windows PowerShell.
+
+Include commands I can copy and paste.
+
+## C. Connect the GitHub repository
+
+Explain how I can obtain the repository locally.
+
+Explain how to open the project folder.
+
+Explain how to install dependencies.
+
+Show me how to start the project locally.
+
+## D. Create the Cloudflare Worker
+
+Explain exactly how to:
+
+- Open the Cloudflare dashboard.
+- Find Workers & Pages.
+- Create or deploy the Worker.
+- Choose a suitable name.
+- Configure the project.
+- Find the Worker URL.
+- Test that it works.
+
+Explain both the dashboard approach and the CLI approach where appropriate.
+
+## E. Create the D1 database
+
+This needs a particularly clear explanation.
+
+Explain how to:
+
+1. Open Cloudflare D1.
+2. Create a new database.
+3. Give it the correct name.
+4. Copy the database ID.
+5. Add the database ID to the correct Wrangler configuration.
+6. Set up the correct database binding.
+7. Execute database migrations.
+8. Verify the tables exist.
+9. Test that the Worker can read and write data.
+
+Include the exact commands appropriate for this repository.
+
+Use the actual database name and binding name defined in the project.
+
+Do not make me guess where the database ID belongs.
+
+## F. Configure the backend
+
+Explain:
+- API configuration.
+- Environment variables.
+- Required Cloudflare bindings.
+- CORS.
+- Authentication.
+- Database migrations.
+- Production deployment.
+
+Show how to run the relevant Wrangler commands.
+
+## G. Configure Cloudflare and GitHub Actions
+
+Explain how to create a narrowly scoped Cloudflare API token.
+
+Explain where to find the Cloudflare Account ID.
+
+Explain exactly how to add them to GitHub:
+
+Repository → Settings → Secrets and variables → Actions.
+
+Document the exact names of the required secrets and variables.
+
+Never ask me to paste these credentials into a chat or commit them to GitHub.
+
+Clarify the difference between a public configuration variable and a private secret.
+
+## H. Configure GitHub Pages
+
+Explain exactly:
+
+1. Open the repository.
+2. Click Settings.
+3. Open Pages.
+4. Find Build and deployment.
+5. Select GitHub Actions as the source.
+6. Save the configuration.
+7. Open the Actions tab.
+8. Run or inspect the deployment.
+9. Find the Pages preview URL.
+
+Explain what to do if the deployment fails.
+
+## I. Configure the IPA build
+
+Explain:
+
+- Where the iOS workflow is located.
+- How to trigger it.
+- How to monitor the build.
+- Where the artifact appears.
+- How to download the IPA.
+- Why it is unsigned.
+- How I can sign it using my own signing workflow.
+- How to install the signed app on my iPhone.
+
+Do not pretend that downloading an unsigned IPA is sufficient for installation.
+
+## J. Update procedure
+
+Explain the complete process when I change the application:
+
+- Update files in GitHub.
+- Push changes to main.
+- Wait for the appropriate Actions workflow to complete.
+- Check the Pages preview.
+- Run or inspect the iOS workflow.
+- Download the newest IPA.
+- Sign and install it.
+
+Make the process easy to understand.
+
+## K. Troubleshooting
+
+Include solutions for common issues:
+
+- Worker not responding.
+- D1 database connection errors.
+- Incorrect database ID.
+- Failed migrations.
+- Authentication not working.
+- CORS errors.
+- GitHub Pages blank screen.
+- Incorrect asset paths.
+- GitHub Actions failures.
+- Failed iOS builds.
+- IPA packaging errors.
+- iOS installation errors.
+- Missing GitHub Secrets.
+
+For every issue, explain how to identify and fix it.
+
+## L. Cost and free-plan information
+
+Explain which services are free, what limits exist and which actions could require payment.
+
+Do not describe free plans as unlimited.
+
+Check current official documentation before stating exact limits.
+
+Never activate paid services automatically.
+
+The goal is to run RS Setups on free services for a small number of users.
+
+# 18. OTHER DOCUMENTATION
+
+Also create:
+
+- `README.md` — a useful project overview.
+- `docs/ARCHITECTURE.md` — explain how everything connects.
+- `docs/INSTALLATIE-NL.md` — full Dutch installation guide.
+- `docs/IPA-GUIDE-NL.md` — IPA download, signing and installation guide.
+- `docs/CLOUDFLARE-NL.md` — detailed Cloudflare configuration.
+- `docs/DATABASE.md` — database structure and migrations.
+
+Keep the application itself in English.
+
+# 19. TESTING AND QUALITY CONTROL
+
+Before considering the project complete, test it.
+
+Test:
+
+- Frontend build.
+- GitHub Pages base paths.
+- Backend API.
+- Database connection.
+- Database migrations.
+- Account registration and login.
+- Account data isolation.
+- Saving setups.
+- Retrieving setups.
+- Saving feedback.
+- Setup version history.
+- Research source handling.
+- Setup engine validation.
+- PWA manifest.
+- Capacitor synchronisation.
+- iOS project compilation.
+- IPA packaging.
+- GitHub Actions configuration.
+
+Do not leave non-functional buttons.
+
+Do not use fake internet research data.
+
+Do not present example setups as verified real setups.
+
+Never invent a successful build or deployment.
+
+If a feature requires manual configuration, explain exactly what is missing.
+
+# 20. FINAL EXECUTION INSTRUCTIONS
+
+Start by inspecting the existing GitHub repository.
+
+Then implement the application in a sensible order:
+
+1. Repository and project structure.
+2. Frontend and design.
+3. Main screens.
+4. Setup engine.
+5. Backend.
+6. Cloudflare D1 database schema.
+7. Research system.
+8. Authentication and online memory.
+9. Capacitor iOS project.
+10. GitHub Pages workflow.
+11. iOS IPA workflow.
+12. Cloudflare deployment workflow.
+13. Tests.
+14. Dutch installation documentation.
+
+Do not stop after creating a plan.
+
+Do not stop after creating a README.
+
+Do not leave the main functionality as a visual demo.
+
+Actually create the files and implement the code in the GitHub repository.
+
+Use the `main` branch.
+
+If you cannot perform a task because an external account, API token or manual dashboard action is required, explain that clearly and document the precise next steps.
+
+Never invent credentials, database IDs, deployment URLs or successful deployment results.
+
+At the end, give me a clear Dutch completion report containing:
+
+- What you actually built.
+- Which files you created.
+- Which GitHub Actions workflows are available.
+- What is already working.
+- What still needs my manual configuration.
+- Exactly where I should start.
+- The exact order in which I must configure GitHub, Cloudflare, Pages and the iPhone build.
+
+**FINAL GOAL:**
+
+A fully functioning, English-language RS Setups application with a premium blue-and-white Liquid Glass design, an intelligent personalised F1 setup engine, online setup research, permanent Cloudflare memory, GitHub Pages preview and automatic downloadable native iOS IPA builds.
+
+Everything should be designed to work for a small team, remain understandable and use free services wherever possible.

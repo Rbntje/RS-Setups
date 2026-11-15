@@ -1,0 +1,16 @@
+node_modules/
+worker/node_modules/
+build/
+dist/
+worker/dist/
+coverage/
+.wrangler/
+.DS_Store
+*.log
+.env*
+!.env.example
+ios/App/build/
+ios/DerivedData/
+*.ipa
+*.xcarchive
+.playwright-cli/

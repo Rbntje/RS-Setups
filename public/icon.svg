@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="rsBg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0A2558" />
+      <stop offset="55%" stop-color="#0B4F9E" />
+      <stop offset="100%" stop-color="#1D6FE8" />
+    </linearGradient>
+    <linearGradient id="rsGlass" x1="96" y1="96" x2="416" y2="416" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.32" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.06" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#rsBg)" />
+  <rect x="44" y="44" width="424" height="424" rx="88" fill="url(#rsGlass)" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="4" />
+  <path d="M128 334L174 178H264C307 178 332 200 332 234C332 262 315 282 285 290L322 334H272L240 293H188L175 334H128ZM199 256H256C275 256 286 247 286 234C286 221 275 214 256 214H212L199 256Z" fill="#FFFFFF" />
+  <path d="M312 310C328 324 352 332 378 332C402 332 418 322 418 308C418 294 402 288 372 281C332 271 312 256 312 228C312 197 338 176 378 176C404 176 426 184 442 197L421 230C406 218 391 212 375 212C358 212 348 219 348 229C348 240 359 245 389 252C430 262 454 277 454 306C454 342 422 366 374 366C341 366 310 354 290 336L312 310Z" fill="#CFE4FF" />
+</svg>

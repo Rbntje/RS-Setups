@@ -1,0 +1,6 @@
+{
+  "name": "RS Setups",
+  "description": "100% local on-device EA Sports F1 25 & 2026 Season Pack setup garage with custom coded AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
