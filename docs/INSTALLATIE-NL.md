@@ -31,7 +31,7 @@ git remote add origin https://github.com/JOUW-GEBRUIKERSNAAM/rs-setups.git
 git push -u origin main
 ```
 
-*(Vervang `JOUW-GEBRUIKERSNAAM` door jouw echte GitHub-gebruikersnaam. Heb je **GitHub Desktop** op je computer? Dan kun je ook gewoon **File → Add Local Repository**, die map kiezen, **Commit to main** en op **Publish repository** klikken — zonder terminal!)*
+*(Vervang `JOUW-GEBRUIKERSNAAM` door jouw echte GitHub-gebruikersnaam. Let op: `package-lock.json` en `.npmrc` worden automatisch meegepusht via `git add .`, zodat GitHub Actions zonder lockfile-fouten bouwt. Heb je **GitHub Desktop** op je computer? Dan kun je ook gewoon **File → Add Local Repository**, die map kiezen, **Commit to main** en op **Publish repository** klikken — zonder terminal!)*
 
 ---
 

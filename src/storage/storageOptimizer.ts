@@ -104,12 +104,25 @@ function compactAiBrain(brain: LocalAiBrain): { next: LocalAiBrain; prunedWeight
     if (uniqueInsights.length >= 10) break;
   }
 
+  // Keep up to 48 newest online circuit knowledge snapshots so storage stays tiny
+  const rawOnline = brain.onlineCircuitKnowledge ?? {};
+  const keptOnlineEntries = Object.values(rawOnline)
+    .sort((a, b) => b.learnedAt.localeCompare(a.learnedAt))
+    .slice(0, 48);
+  const cleanOnline: typeof rawOnline = {};
+  for (const entry of keptOnlineEntries) {
+    cleanOnline[entry.key] = entry;
+  }
+
   return {
     next: {
       ...brain,
       globalStyleShifts: cleanGlobal,
       trackBiases: cleanTracks,
       recentInsights: uniqueInsights,
+      onlineCircuitKnowledge: cleanOnline,
+      learningFeed: (brain.learningFeed ?? []).slice(0, 20),
+      userFeedbackHistory: (brain.userFeedbackHistory ?? []).slice(0, 20),
       updatedAt: new Date().toISOString(),
     },
     prunedWeights,

@@ -18,15 +18,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: TypeScript check
         run: npm run lint
 
-      - name: Run unit and API isolation tests
+      - name: Run unit tests
         run: npm test
 
       - name: Build production frontend

@@ -18,11 +18,15 @@ import { createDefaultProfile } from '../engine/wizard';
 import {
   createInitialAiBrain,
   diagnoseAndTuneWithCodedAi,
+  recordOnlineLearningIntoBrain,
   trainAiBrainFromDeltas,
+  trainAiBrainFromFeedbackOutcome,
   trainAiBrainFromRestore,
+  type AiFeedbackOutcome,
   type CodedAiDiagnosis,
   type LocalAiBrain,
 } from '../engine/setupAi';
+import type { WebResearchPayload } from '../engine/webResearch';
 import {
   SOFT_COMPACTION_BYTES,
   calculateWorkspaceStorageStats,
@@ -60,6 +64,7 @@ export interface LocalAppSettings {
   lastCircuitId: string;
   reducedMotionOverride: 'system' | 'reduced' | 'full';
   githubRepo: string;
+  autoLearnOnline: boolean;
 }
 
 export interface LocalWorkspaceState {
@@ -219,6 +224,7 @@ export function createInitialWorkspaceState(): LocalWorkspaceState {
       lastCircuitId: 'silverstone',
       reducedMotionOverride: 'system',
       githubRepo: '',
+      autoLearnOnline: true,
     },
     folders: createDefaultFolders(now),
     profiles: {
@@ -260,8 +266,12 @@ export function createLocalStore(adapter: PersistenceAdapter = createIndexedDbAd
         settings: {
           ...loaded.settings,
           githubRepo: loaded.settings?.githubRepo ?? '',
+          autoLearnOnline: loaded.settings?.autoLearnOnline ?? true,
         },
-        aiBrain: loaded.aiBrain ?? createInitialAiBrain(),
+        aiBrain: {
+          ...createInitialAiBrain(),
+          ...(loaded.aiBrain ?? {}),
+        },
         lastOptimizedAt: loaded.lastOptimizedAt ?? new Date().toISOString(),
       };
       return cachedState;
@@ -299,6 +309,7 @@ export function createLocalStore(adapter: PersistenceAdapter = createIndexedDbAd
       sessionType: SessionType;
       raceTyreFocus?: boolean;
       raceConsistencyFocus?: boolean;
+      liveWebPayload?: WebResearchPayload | null;
     }
   ) {
     const profile = state.profiles[payload.gameVersion];
@@ -327,6 +338,7 @@ export function createLocalStore(adapter: PersistenceAdapter = createIndexedDbAd
       recentCircuitFeedback: rememberedTags,
       circuitNote: matchingNote,
       aiBrain: state.aiBrain,
+      liveWebPayload: payload.liveWebPayload,
     });
   }
 
@@ -346,6 +358,7 @@ export function createLocalStore(adapter: PersistenceAdapter = createIndexedDbAd
       sessionType: SessionType;
       raceTyreFocus?: boolean;
       raceConsistencyFocus?: boolean;
+      liveWebPayload?: WebResearchPayload | null;
     }) {
       const state = cachedState ?? createInitialWorkspaceState();
       return buildDraftWithState(state, payload);
@@ -591,8 +604,7 @@ export function createLocalStore(adapter: PersistenceAdapter = createIndexedDbAd
         Math.max(1, Math.min(10, Math.round(Number(v ?? fallback))));
       const now = new Date().toISOString();
 
-      const updated: DrivingProfile = {
-        ...existing,
+      const sharedStyle = {
         speedVsGrip: clamp10(payload.speedVsGrip, existing.speedVsGrip),
         rearStability: clamp10(payload.rearStability, existing.rearStability),
         carAggression: clamp10(payload.carAggression, existing.carAggression),
@@ -608,14 +620,28 @@ export function createLocalStore(adapter: PersistenceAdapter = createIndexedDbAd
         updatedAt: now,
       };
 
+      const updated2025: DrivingProfile = {
+        ...state.profiles.f1_25_2025,
+        ...sharedStyle,
+        gameVersion: 'f1_25_2025',
+      };
+
+      const updated2026: DrivingProfile = {
+        ...state.profiles.f1_25_2026_pack,
+        ...sharedStyle,
+        gameVersion: 'f1_25_2026_pack',
+      };
+
       await commit({
         ...state,
         profiles: {
-          ...state.profiles,
-          [payload.gameVersion]: updated,
+          f1_25_2025: updated2025,
+          f1_25_2026_pack: updated2026,
         },
       });
-      return structuredClone(updated);
+      return structuredClone(
+        payload.gameVersion === 'f1_25_2026_pack' ? updated2026 : updated2025
+      );
     },
 
     async saveCircuitNote(
@@ -767,7 +793,8 @@ export function createLocalStore(adapter: PersistenceAdapter = createIndexedDbAd
 
     async applyAiTune(
       setupId: string,
-      prompt: string
+      prompt: string,
+      precomputedDiagnosis?: CodedAiDiagnosis
     ): Promise<{
       setup: SavedSetup & { versions: SetupVersionRecord[] };
       diagnosis: CodedAiDiagnosis;
@@ -777,16 +804,19 @@ export function createLocalStore(adapter: PersistenceAdapter = createIndexedDbAd
       if (!target) throw new Error('Setup not found.');
 
       const profile = state.profiles[target.gameVersion];
-      const diagnosis = diagnoseAndTuneWithCodedAi({
-        prompt,
-        gameVersion: target.gameVersion,
-        circuitId: target.circuitId,
-        weather: target.weather,
-        sessionType: target.sessionType,
-        currentParameters: target.parameters,
-        profile,
-        aiBrain: state.aiBrain,
-      });
+      const diagnosis =
+        precomputedDiagnosis ??
+        diagnoseAndTuneWithCodedAi({
+          prompt,
+          gameVersion: target.gameVersion,
+          circuitId: target.circuitId,
+          weather: target.weather,
+          sessionType: target.sessionType,
+          currentParameters: target.parameters,
+          profile,
+          aiBrain: state.aiBrain,
+          references: state.references,
+        });
 
       if (diagnosis.recommendedDiffs.length === 0) {
         return { setup: structuredClone(target), diagnosis };
@@ -958,6 +988,56 @@ export function createLocalStore(adapter: PersistenceAdapter = createIndexedDbAd
       });
     },
 
+    async recordOnlineCircuitLearning(payload: {
+      webPayload: WebResearchPayload;
+      weather: WeatherType;
+    }): Promise<LocalAiBrain> {
+      const state = await ensureState();
+      const { webPayload, weather } = payload;
+      const domains = Array.from(new Set(webPayload.webSources.map((s) => s.domain)));
+      const baseline = generateSetup({
+        gameVersion: webPayload.gameVersion,
+        circuitId: webPayload.circuitId,
+        weather,
+        sessionType: 'race',
+        profile: state.profiles[webPayload.gameVersion],
+      }).parameters;
+
+      const nextAiBrain = recordOnlineLearningIntoBrain(state.aiBrain, {
+        circuitId: webPayload.circuitId,
+        circuitName: webPayload.circuitName,
+        gameVersion: webPayload.gameVersion,
+        weather,
+        consensusParameters: webPayload.consensusParameters,
+        matchedParameterCount: webPayload.matchedParameterCount,
+        domains,
+        driverConsensusNote: webPayload.driverConsensusNote,
+        sampleSizeNote: webPayload.sampleSizeNote,
+        baselineParameters: baseline,
+      });
+
+      const committed = await commit({
+        ...state,
+        aiBrain: nextAiBrain,
+      });
+      return structuredClone(committed.aiBrain);
+    },
+
+    async recordAiFeedbackOutcome(payload: {
+      gameVersion: GameVersion;
+      circuitId: string;
+      prompt: string;
+      outcome: AiFeedbackOutcome;
+    }): Promise<LocalAiBrain> {
+      const state = await ensureState();
+      const nextAiBrain = trainAiBrainFromFeedbackOutcome(state.aiBrain, payload);
+      const committed = await commit({
+        ...state,
+        aiBrain: nextAiBrain,
+      });
+      return structuredClone(committed.aiBrain);
+    },
+
     async saveSettings(patch: Partial<LocalAppSettings>): Promise<LocalAppSettings> {
       const state = await ensureState();
       const nextSettings: LocalAppSettings = {
@@ -1009,6 +1089,7 @@ export function createLocalStore(adapter: PersistenceAdapter = createIndexedDbAd
           lastCircuitId: parsed.settings?.lastCircuitId ?? 'silverstone',
           reducedMotionOverride: parsed.settings?.reducedMotionOverride ?? 'system',
           githubRepo: parsed.settings?.githubRepo ?? '',
+          autoLearnOnline: parsed.settings?.autoLearnOnline ?? true,
         },
         folders: ensureSystemFolders(parsed.folders),
         profiles: parsed.profiles,

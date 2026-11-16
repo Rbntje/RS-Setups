@@ -1,37 +1,48 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
+  AlertTriangle,
   Bot,
   Check,
   Copy,
+  ExternalLink,
   Folder,
   GitCompare,
+  Globe,
   History,
+  Loader2,
   MessageSquarePlus,
   Minus,
-  Pencil,
+  MoreHorizontal,
   Plus,
   RotateCcw,
   Save,
   SlidersHorizontal,
   Sparkles,
   Star,
+  ThumbsUp,
 } from 'lucide-react';
 import type {
   DrivingProfile,
   FeedbackTag,
+  GameVersion,
+  ResearchResult,
   SavedSetup,
   SetupFolder,
   SetupParameterKey,
   SetupParameters,
   SetupVersionRecord,
+  WeatherType,
 } from '../types/setup';
 import {
   AI_QUICK_PROMPTS,
-  diagnoseAndTuneWithCodedAi,
+  type AiChatTurn,
+  type AiFeedbackOutcome,
   type CodedAiDiagnosis,
   type LocalAiBrain,
 } from '../engine/setupAi';
+import { runOnlineAwareAiDiagnosis } from '../engine/liveWebClient';
+import type { WebResearchPayload } from '../engine/webResearch';
 import {
   FEEDBACK_OPTIONS,
   GAME_VERSIONS,
@@ -46,6 +57,7 @@ interface SetupDetailsPageProps {
   folders: SetupFolder[];
   profile: DrivingProfile;
   aiBrain: LocalAiBrain;
+  references: ResearchResult[];
   initialTab?: 'setup' | 'ai' | 'feedback' | 'history';
   onToggleFavourite: (setupId: string) => Promise<void>;
   onUpdateSetup: (
@@ -53,7 +65,21 @@ interface SetupDetailsPageProps {
     patch: { title?: string; folderId?: string; parameters?: SetupParameters }
   ) => Promise<void>;
   onSubmitFeedback: (setupId: string, tags: FeedbackTag[], notes: string) => Promise<void>;
-  onApplyAiTune: (setupId: string, prompt: string) => Promise<void>;
+  onApplyAiTune: (
+    setupId: string,
+    prompt: string,
+    precomputedDiagnosis?: CodedAiDiagnosis
+  ) => Promise<void>;
+  onRecordOnlineLearning: (payload: {
+    webPayload: WebResearchPayload;
+    weather: WeatherType;
+  }) => Promise<void>;
+  onRecordAiFeedbackOutcome: (payload: {
+    gameVersion: GameVersion;
+    circuitId: string;
+    prompt: string;
+    outcome: AiFeedbackOutcome;
+  }) => Promise<void>;
   onRestoreVersion: (setupId: string, versionNumber: number) => Promise<void>;
 }
 
@@ -71,17 +97,20 @@ export const SetupDetailsPage: React.FC<SetupDetailsPageProps> = ({
   folders,
   profile,
   aiBrain,
+  references,
   initialTab = 'setup',
   onToggleFavourite,
   onUpdateSetup,
   onSubmitFeedback,
   onApplyAiTune,
+  onRecordOnlineLearning,
+  onRecordAiFeedbackOutcome,
   onRestoreVersion,
 }) => {
   const [activeTab, setActiveTab] = useState<'setup' | 'ai' | 'feedback' | 'history'>(initialTab);
   const [copied, setCopied] = useState(false);
 
-  // Rename / Folder quick panel
+  // Rename / Folder quick panel toggled cleanly via More icon
   const [editingMeta, setEditingMeta] = useState(false);
   const [metaTitle, setMetaTitle] = useState(setup.title);
   const [metaFolderId, setMetaFolderId] = useState(setup.folderId);
@@ -92,9 +121,14 @@ export const SetupDetailsPage: React.FC<SetupDetailsPageProps> = ({
   const [savingParams, setSavingParams] = useState(false);
 
   const [aiPrompt, setAiPrompt] = useState('');
+  const [lastAiPrompt, setLastAiPrompt] = useState('');
+  const [aiChatHistory, setAiChatHistory] = useState<AiChatTurn[]>([]);
+  const [aiThinking, setAiThinking] = useState(false);
+  const [aiStatusText, setAiStatusText] = useState('Visiting websites & checking setup meta...');
   const [aiDiagnosis, setAiDiagnosis] = useState<CodedAiDiagnosis | null>(null);
   const [applyingAi, setApplyingAi] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [aiFeedbackMsg, setAiFeedbackMsg] = useState<string | null>(null);
 
   const [selectedTags, setSelectedTags] = useState<FeedbackTag[]>([]);
   const [feedbackNotes, setFeedbackNotes] = useState('');
@@ -237,36 +271,75 @@ export const SetupDetailsPage: React.FC<SetupDetailsPageProps> = ({
     }
   };
 
-  const runCodedAiDiagnosis = (promptText: string) => {
+  const runCodedAiDiagnosis = async (promptText: string) => {
     setAiError(null);
     setFbResultMsg(null);
+    setAiFeedbackMsg(null);
     const trimmed = promptText.trim();
     if (!trimmed) {
-      setAiError('Describe what the car is doing (or tap a quick symptom chip).');
+      setAiError('Describe what the car is doing or ask RS AI to check websites.');
       return;
     }
-    const result = diagnoseAndTuneWithCodedAi({
-      prompt: trimmed,
+
+    const historySnapshot = [...aiChatHistory];
+    setAiChatHistory((prev) => [...prev, { role: 'user' as const, text: trimmed }].slice(-8));
+    setLastAiPrompt(trimmed);
+    setAiThinking(true);
+    setAiStatusText('Visiting F1 setup websites & checking local AI memory...');
+
+    try {
+      const { diagnosis, webPayload } = await runOnlineAwareAiDiagnosis({
+        prompt: trimmed,
+        gameVersion: setup.gameVersion,
+        circuitId: setup.circuitId,
+        weather: setup.weather,
+        sessionType: setup.sessionType,
+        currentParameters: setup.parameters,
+        profile,
+        aiBrain,
+        references,
+        conversationHistory: historySnapshot,
+        onWebStage: (msg) => setAiStatusText(msg),
+      });
+      if (webPayload?.ok) {
+        await onRecordOnlineLearning({ webPayload, weather: setup.weather });
+      }
+      setAiChatHistory((prev) =>
+        [...prev, { role: 'ai' as const, text: diagnosis.engineerReply }].slice(-8)
+      );
+      setAiDiagnosis(diagnosis);
+      setAiPrompt('');
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
+  const handleDetailsAiFeedback = async (outcome: AiFeedbackOutcome, followUpPrompt?: string) => {
+    await onRecordAiFeedbackOutcome({
       gameVersion: setup.gameVersion,
       circuitId: setup.circuitId,
-      weather: setup.weather,
-      sessionType: setup.sessionType,
-      currentParameters: setup.parameters,
-      profile,
-      aiBrain,
+      prompt: lastAiPrompt || aiDiagnosis?.intentSummary || 'Setup check',
+      outcome,
     });
-    setAiDiagnosis(result);
+    if (outcome === 'helpful') {
+      setAiFeedbackMsg('Feedback opgeslagen — AI onthoudt dit voor ' + setup.circuitName + '.');
+      return;
+    }
+    if (followUpPrompt) {
+      await runCodedAiDiagnosis(followUpPrompt);
+    }
   };
 
   const handleApplyAiDiagnosis = async () => {
-    if (!aiPrompt.trim() || !aiDiagnosis || aiDiagnosis.recommendedDiffs.length === 0) return;
+    const promptForLog = lastAiPrompt || aiPrompt || aiDiagnosis?.intentSummary || 'RS AI Tune';
+    if (!aiDiagnosis || aiDiagnosis.recommendedDiffs.length === 0) return;
     setApplyingAi(true);
     setAiError(null);
     try {
-      await onApplyAiTune(setup.id, aiPrompt);
+      await onApplyAiTune(setup.id, promptForLog, aiDiagnosis);
       setAiDiagnosis(null);
       setAiPrompt('');
-      setFbResultMsg(`RS Coded AI saved v${setup.currentVersion + 1} to local memory.`);
+      setFbResultMsg(`RS AI saved v${setup.currentVersion + 1} using online & local checks.`);
       setActiveTab('setup');
       scrollMainToTop();
     } catch (err) {
@@ -278,9 +351,9 @@ export const SetupDetailsPage: React.FC<SetupDetailsPageProps> = ({
 
   return (
     <div className="space-y-3.5">
-      {/* Compact iPhone Hero Card */}
+      {/* Clean iPhone Hero Card with Minimal Actions */}
       <section className="ios-card rounded-[26px] p-4 space-y-3">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-2.5">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#526581]">
               <span className="inline-flex items-center gap-1 rounded-md bg-[#EBF3FF] px-1.5 py-0.5 text-[10px] font-bold text-[#007AFF]">
@@ -297,17 +370,33 @@ export const SetupDetailsPage: React.FC<SetupDetailsPageProps> = ({
             </h1>
           </div>
 
-          <div className="rounded-2xl bg-[#EBF3FF] px-3 py-1.5 text-center shrink-0">
-            <div className="text-[10px] font-semibold text-[#007AFF]">Fit</div>
-            <div className="font-mono-tabular text-base font-bold text-[#0A2558]">
-              {setup.analysis.compatibilityScore}%
-            </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => onToggleFavourite(setup.id)}
+              aria-label={setup.isFavourite ? 'Remove from favourites' : 'Save to favourites'}
+              className={`ios-press w-9 h-9 rounded-full flex items-center justify-center cursor-pointer ${
+                setup.isFavourite ? 'bg-[#EBF3FF] text-[#007AFF]' : 'bg-[#F2F2F7] text-[#64748B]'
+              }`}
+            >
+              <Star className={`w-4 h-4 ${setup.isFavourite ? 'fill-[#007AFF]' : ''}`} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEditingMeta((v) => !v)}
+              aria-label="Rename or move setup"
+              className={`ios-press w-9 h-9 rounded-full flex items-center justify-center cursor-pointer ${
+                editingMeta ? 'bg-[#007AFF] text-white' : 'bg-[#F2F2F7] text-[#0A192F]'
+              }`}
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
         <p className="text-xs text-[#475569] leading-relaxed">{setup.analysis.suitabilitySummary}</p>
 
-        {/* Inline Rename / Move Folder Panel */}
         {editingMeta && (
           <form onSubmit={handleSaveMeta} className="pt-2 border-t border-black/[0.06] space-y-2">
             <input
@@ -340,49 +429,21 @@ export const SetupDetailsPage: React.FC<SetupDetailsPageProps> = ({
           </form>
         )}
 
-        <div className="grid grid-cols-4 gap-1.5 pt-1">
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <div className="rounded-2xl bg-[#EBF3FF] px-3 py-1.5 font-mono-tabular text-xs font-bold text-[#007AFF]">
+            {setup.analysis.compatibilityScore}% Fit
+          </div>
           <button
             type="button"
             onClick={handleCopy}
-            className="ios-press inline-flex items-center justify-center gap-1 rounded-2xl bg-[#F2F2F7] px-2 py-2 text-[11px] font-semibold text-[#0A192F] min-h-[40px] cursor-pointer whitespace-nowrap"
+            className="ios-press inline-flex items-center justify-center gap-1.5 rounded-full bg-[#F2F2F7] px-4 py-2 text-xs font-semibold text-[#0A192F] min-h-[36px] cursor-pointer"
           >
             {copied ? (
               <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             ) : (
               <Copy className="w-3.5 h-3.5 text-[#007AFF] shrink-0" />
             )}
-            <span>{copied ? 'Copied' : 'Copy'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onToggleFavourite(setup.id)}
-            className={`ios-press inline-flex items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold min-h-[40px] cursor-pointer whitespace-nowrap ${
-              setup.isFavourite
-                ? 'bg-[#EBF3FF] text-[#007AFF]'
-                : 'bg-[#F2F2F7] text-[#334155]'
-            }`}
-          >
-            <Star className={`w-3.5 h-3.5 shrink-0 ${setup.isFavourite ? 'fill-[#007AFF]' : ''}`} />
-            <span>{setup.isFavourite ? 'Saved' : 'Star'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setEditingMeta((v) => !v)}
-            className="ios-press inline-flex items-center justify-center gap-1 rounded-2xl bg-[#F2F2F7] px-2 py-2 text-[11px] font-semibold text-[#0A192F] min-h-[40px] cursor-pointer whitespace-nowrap"
-          >
-            <Pencil className="w-3.5 h-3.5 text-[#007AFF] shrink-0" />
-            <span>Move</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('ai')}
-            className="ios-press inline-flex items-center justify-center gap-1 rounded-2xl bg-[#007AFF] px-2 py-2 text-[11px] font-bold text-white min-h-[40px] cursor-pointer whitespace-nowrap"
-          >
-            <Bot className="w-3.5 h-3.5 shrink-0" />
-            <span>RS AI</span>
+            <span>{copied ? 'Copied Setup' : 'Copy Values'}</span>
           </button>
         </div>
       </section>
@@ -446,7 +507,7 @@ export const SetupDetailsPage: React.FC<SetupDetailsPageProps> = ({
               className="ios-press inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#007AFF] shadow-sm cursor-pointer"
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>{editingParams ? 'Cancel Edit' : 'Edit Numbers'}</span>
+              <span>{editingParams ? 'Cancel' : 'Edit'}</span>
             </button>
           </div>
 
@@ -562,7 +623,7 @@ export const SetupDetailsPage: React.FC<SetupDetailsPageProps> = ({
                   <h2>RS Setup AI Engineer</h2>
                 </div>
                 <p className="mt-0.5 text-[11px] text-[#526581] leading-relaxed">
-                  100% custom-coded in TypeScript · Learns your style on this phone.
+                  Custom-coded on this iPhone · Understands English &amp; Dutch.
                 </p>
               </div>
               <div className="rounded-2xl bg-[#EBF3FF] px-2.5 py-1 text-center shrink-0">
@@ -575,16 +636,16 @@ export const SetupDetailsPage: React.FC<SetupDetailsPageProps> = ({
 
             <div>
               <div className="text-[11px] font-semibold text-[#526581] mb-1.5">
-                Quick Symptoms (1-Tap)
+                Quick Prompts
               </div>
               <div className="grid grid-cols-2 gap-1.5">
                 {AI_QUICK_PROMPTS.map((qp) => (
                   <button
                     key={qp.id}
                     type="button"
+                    disabled={aiThinking}
                     onClick={() => {
-                      setAiPrompt(qp.prompt);
-                      runCodedAiDiagnosis(qp.prompt);
+                      void runCodedAiDiagnosis(qp.prompt);
                     }}
                     className="ios-press rounded-2xl bg-[#F2F2F7] px-2.5 py-2 text-left text-[11px] font-semibold text-[#0A192F] hover:bg-[#EBF3FF] min-h-[38px] cursor-pointer"
                   >
@@ -594,22 +655,45 @@ export const SetupDetailsPage: React.FC<SetupDetailsPageProps> = ({
               </div>
             </div>
 
+            {aiChatHistory.length > 0 && (
+              <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1 pt-1">
+                {aiChatHistory.map((turn, idx) => (
+                  <div
+                    key={`${idx}-${turn.role}`}
+                    className={`rounded-2xl px-3 py-2 text-[11.5px] leading-relaxed ${
+                      turn.role === 'user'
+                        ? 'bg-[#007AFF] text-white ml-6'
+                        : 'bg-[#F2F2F7] text-[#0A192F] mr-4'
+                    }`}
+                  >
+                    {turn.text}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                runCodedAiDiagnosis(aiPrompt);
+                void runCodedAiDiagnosis(aiPrompt);
               }}
               className="space-y-2 pt-1"
             >
               <label htmlFor="rs-ai-input" className="block text-[11px] font-semibold text-[#334155]">
-                Describe handling issue (English or Dutch)
+                Tell RS AI how the car feels or ask anything (English / Dutch)
               </label>
               <textarea
                 id="rs-ai-input"
                 rows={2}
                 value={aiPrompt}
                 onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder="e.g. Rear snaps exiting Turn 11, or: onderstuur bij insturen en stuitert over kerbs..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    void runCodedAiDiagnosis(aiPrompt);
+                  }
+                }}
+                placeholder="Bijv. Mijn voorbanden worden te heet, of: zet voorvleugel op 26..."
                 className="w-full rounded-2xl bg-[#F2F2F7] px-3 py-2 text-xs text-[#0A192F]"
               />
               {aiError && (
@@ -619,15 +703,25 @@ export const SetupDetailsPage: React.FC<SetupDetailsPageProps> = ({
               )}
               <button
                 type="submit"
-                className="ios-press w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-[#007AFF] py-3 px-4 text-xs font-bold text-white min-h-[44px] cursor-pointer"
+                disabled={aiThinking}
+                className="ios-press w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-[#007AFF] py-3 px-4 text-xs font-bold text-white disabled:opacity-60 min-h-[44px] cursor-pointer"
               >
-                <Sparkles className="w-4 h-4" />
-                <span>Analyze with RS Coded AI</span>
+                {aiThinking ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>{aiStatusText}</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Search Web &amp; Analyze Setup</span>
+                  </>
+                )}
               </button>
             </form>
           </section>
 
-          {aiDiagnosis && (
+          {!aiThinking && aiDiagnosis && (
             <section className="ios-card rounded-[24px] p-4 space-y-3 border border-[#C6DAF7]">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs font-bold text-[#007AFF]">
@@ -638,9 +732,114 @@ export const SetupDetailsPage: React.FC<SetupDetailsPageProps> = ({
                 </span>
               </div>
 
+              {aiDiagnosis.searchedSources.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {aiDiagnosis.searchedSources.map((src) => (
+                    <span
+                      key={src}
+                      className="rounded-md bg-[#F2F2F7] px-2 py-0.5 text-[10px] font-semibold text-[#334155]"
+                    >
+                      {src}
+                    </span>
+                  ))}
+                </div>
+              )}
+
               <p className="text-xs text-[#1E293B] leading-relaxed">
                 {aiDiagnosis.engineerReply}
               </p>
+              {aiDiagnosis.followUpQuestion && (
+                <p className="text-[11px] font-medium text-[#0B4F9E]">
+                  {aiDiagnosis.followUpQuestion}
+                </p>
+              )}
+
+              <div className="pt-1 border-t border-black/[0.06] space-y-1.5">
+                <div className="text-[10px] font-bold uppercase tracking-wide text-[#64748B]">
+                  Give Feedback to AI
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => void handleDetailsAiFeedback('helpful')}
+                    className="ios-press inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-[10.5px] font-bold text-emerald-700 cursor-pointer"
+                  >
+                    <ThumbsUp className="w-3 h-3" />
+                    <span>Werkt goed</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void handleDetailsAiFeedback(
+                        'still_oversteer',
+                        'Ik heb nog steeds overstuur, maak achterkant nog stabieler'
+                      )
+                    }
+                    className="ios-press inline-flex items-center gap-1 rounded-full bg-[#F2F2F7] px-2.5 py-1 text-[10.5px] font-semibold text-[#0A192F] cursor-pointer"
+                  >
+                    <AlertTriangle className="w-3 h-3 text-amber-500" />
+                    <span>Nog overstuur</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void handleDetailsAiFeedback(
+                        'still_understeer',
+                        'Hij heeft nog steeds onderstuur, geef meer voorgrip'
+                      )
+                    }
+                    className="ios-press rounded-full bg-[#F2F2F7] px-2.5 py-1 text-[10.5px] font-semibold text-[#0A192F] cursor-pointer"
+                  >
+                    <span>Nog onderstuur</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void handleDetailsAiFeedback(
+                        'too_slow',
+                        'Te traag op het rechte stuk, geef meer topsnelheid'
+                      )
+                    }
+                    className="ios-press rounded-full bg-[#F2F2F7] px-2.5 py-1 text-[10.5px] font-semibold text-[#0A192F] cursor-pointer"
+                  >
+                    <span>Te traag</span>
+                  </button>
+                </div>
+                {aiFeedbackMsg && (
+                  <div className="text-[11px] font-semibold text-emerald-700">{aiFeedbackMsg}</div>
+                )}
+              </div>
+
+              {aiDiagnosis.webSources && aiDiagnosis.webSources.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center gap-1 text-[10.5px] font-bold text-[#0B4F9E]">
+                    <Globe className="w-3 h-3" />
+                    <span>Websites Checked Live</span>
+                  </div>
+                  {aiDiagnosis.webSources.slice(0, 3).map((ws) => (
+                    <a
+                      key={ws.url}
+                      href={ws.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block rounded-xl bg-[#F2F2F7] border border-black/[0.05] px-2.5 py-2 hover:bg-[#EBF3FF]/60 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-bold text-[#0A192F] truncate">
+                          {ws.title}
+                        </span>
+                        <ExternalLink className="w-3 h-3 text-[#007AFF] shrink-0" />
+                      </div>
+                      <div className="text-[10px] font-semibold text-[#007AFF]">{ws.domain}</div>
+                      {ws.snippet && (
+                        <p className="text-[10.5px] text-[#526581] line-clamp-2 mt-0.5">
+                          {ws.snippet}
+                        </p>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              )}
 
               {aiDiagnosis.projectedImpacts.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
@@ -685,11 +884,7 @@ export const SetupDetailsPage: React.FC<SetupDetailsPageProps> = ({
                     </span>
                   </button>
                 </>
-              ) : (
-                <p className="text-[11px] text-[#64748B]">
-                  No parameter changes needed for this inquiry.
-                </p>
-              )}
+              ) : null}
             </section>
           )}
         </div>

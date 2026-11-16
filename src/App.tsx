@@ -1,7 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MotionConfig } from 'motion/react';
-import type { FeedbackTag, GameVersion, SavedSetup, SetupVersionRecord } from './types/setup';
-import { GAME_VERSIONS, PARAMETER_ORDER } from './engine/specs';
+import type { FeedbackTag, SavedSetup, SetupVersionRecord } from './types/setup';
+import { GAME_VERSIONS } from './engine/specs';
+import {
+  countLearnedCircuits,
+  fetchTargetOnlineKnowledge,
+  pickNextCircuitToLearn,
+} from './engine/realtimeLearner';
 import {
   localStore,
   type LocalWorkspaceState,
@@ -27,15 +32,23 @@ export default function App() {
   const [selectedFolderId, setSelectedFolderId] = useState<string>('all');
   const [activeSetupId, setActiveSetupId] = useState<string | null>(null);
   const [detailsInitialTab, setDetailsInitialTab] = useState<'setup' | 'ai' | 'feedback' | 'history'>('setup');
-  const [showWizard, setShowWizard] = useState<GameVersion | null>(null);
-  const [profileInitialVersion, setProfileInitialVersion] = useState<GameVersion>('f1_25_2025');
-  const [aiCycleIndex, setAiCycleIndex] = useState(0);
+  const [showWizard, setShowWizard] = useState<boolean>(false);
+  const [learnerStatus, setLearnerStatus] = useState<'idle' | 'learning' | 'paused' | 'offline'>(
+    'idle'
+  );
+  const [liveAiActivity, setLiveAiActivity] = useState<string>('Initializing realtime AI engine...');
+  const learningInFlightRef = useRef(false);
+  const workspaceRef = useRef<LocalWorkspaceState | null>(null);
 
   const refreshWorkspace = useCallback(async () => {
     const next = await localStore.loadWorkspace();
     setWorkspace(next);
     return next;
   }, []);
+
+  useEffect(() => {
+    workspaceRef.current = workspace;
+  }, [workspace]);
 
   useEffect(() => {
     let active = true;
@@ -49,15 +62,6 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, []);
-
-  // Live continuous local AI diagnostic & 200 MB cap heartbeat (purely lightweight in-memory checks;
-  // only writes to disk if soft compaction threshold is crossed).
-  useEffect(() => {
-    const id = setInterval(() => {
-      setAiCycleIndex((c) => (c + 1) % 4);
-    }, 2800);
-    return () => clearInterval(id);
   }, []);
 
   const storageStats = useMemo(
@@ -87,28 +91,87 @@ export default function App() {
     }
   }, [workspace, storageStats.overSoftThreshold, storageStats.overBudget]);
 
-  const liveAiActivity = useMemo(() => {
-    if (!workspace) return 'Booting local AI core...';
-    const trackBiasCount = Object.keys(workspace.aiBrain.trackBiases).length;
-    const totalParamsChecked = workspace.setups.length * PARAMETER_ORDER.length;
-
-    switch (aiCycleIndex) {
-      case 0:
-        return workspace.setups.length > 0
-          ? `Validating ${totalParamsChecked} setup bounds across ${workspace.setups.length} setup${workspace.setups.length === 1 ? '' : 's'}`
-          : 'Ready · Monitoring 2025 & 2026 physics specs';
-      case 1:
-        return trackBiasCount > 0
-          ? `Balancing ${trackBiasCount} circuit weight vector${trackBiasCount === 1 ? '' : 's'} on-device`
-          : 'Scanning 24 F1 circuits & kerb profiles locally';
-      case 2:
-        return `Memory guard active · ${formatStorageBytes(storageStats.totalBytes)} / 200 MB used`;
-      default:
-        return workspace.aiBrain.learnedInteractions > 0
-          ? `Consolidating ${workspace.aiBrain.learnedInteractions} learned driver adjustments`
-          : 'Idle-free check · Ready to learn your driving feedback';
+  const runLiveLearningCycle = useCallback(async (force = false): Promise<boolean> => {
+    const currentWs = workspaceRef.current;
+    if (!currentWs || learningInFlightRef.current) return false;
+    if (!force && !currentWs.settings.autoLearnOnline) {
+      setLearnerStatus('paused');
+      setLiveAiActivity('Realtime web learning paused by user.');
+      return false;
     }
-  }, [workspace, aiCycleIndex, storageStats.totalBytes]);
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      setLearnerStatus('offline');
+      const { uniqueCircuits } = countLearnedCircuits(currentWs.aiBrain);
+      setLiveAiActivity(`Offline · Using ${uniqueCircuits}/24 locally learned circuits`);
+      return false;
+    }
+
+    learningInFlightRef.current = true;
+    const target = pickNextCircuitToLearn(
+      currentWs.aiBrain,
+      currentWs.settings.preferredGameVersion,
+      currentWs.settings.lastCircuitId
+    );
+    const specShort = target.gameVersion === 'f1_25_2026_pack' ? '2026 Pack' : '2025 Spec';
+
+    setLearnerStatus('learning');
+    setLiveAiActivity(
+      `Scanning websites for ${target.circuit.name} (${specShort} · ${target.weather.toUpperCase()})...`
+    );
+
+    try {
+      const webPayload = await fetchTargetOnlineKnowledge(target);
+      if (webPayload?.ok) {
+        await localStore.recordOnlineCircuitLearning({
+          webPayload,
+          weather: target.weather,
+        });
+        const updatedWs = await refreshWorkspace();
+        const { uniqueCircuits } = countLearnedCircuits(updatedWs.aiBrain);
+        const domains = Array.from(new Set(webPayload.webSources.map((s) => s.domain)))
+          .slice(0, 2)
+          .join(', ');
+        setLearnerStatus('idle');
+        setLiveAiActivity(
+          `Learned ${target.circuit.name} (${webPayload.matchedParameterCount}p via ${domains}) · ${uniqueCircuits}/24 on phone (${formatStorageBytes(calculateWorkspaceStorageStats(updatedWs).aiBrainBytes)})`
+        );
+        return true;
+      } else {
+        setLearnerStatus('offline');
+        const { uniqueCircuits } = countLearnedCircuits(currentWs.aiBrain);
+        setLiveAiActivity(
+          `Web unreachable · ${uniqueCircuits}/24 circuits cached locally on phone`
+        );
+        return false;
+      }
+    } finally {
+      learningInFlightRef.current = false;
+    }
+  }, [refreshWorkspace]);
+
+  // Real-time background web-learning daemon while user is on the app
+  useEffect(() => {
+    if (!workspace) return;
+    if (!workspace.settings.autoLearnOnline) {
+      setLearnerStatus('paused');
+      const { uniqueCircuits } = countLearnedCircuits(workspace.aiBrain);
+      setLiveAiActivity(`Paused · ${uniqueCircuits}/24 circuits saved locally on phone`);
+      return;
+    }
+
+    const bootTimer = setTimeout(() => {
+      void runLiveLearningCycle(false);
+    }, 1500);
+
+    const intervalId = setInterval(() => {
+      void runLiveLearningCycle(false);
+    }, 16000);
+
+    return () => {
+      clearTimeout(bootTimer);
+      clearInterval(intervalId);
+    };
+  }, [Boolean(workspace), workspace?.settings.autoLearnOnline, runLiveLearningCycle]);
 
   if (!workspace) {
     return (
@@ -122,6 +185,8 @@ export default function App() {
 
   const activeSetup: (SavedSetup & { versions: SetupVersionRecord[] }) | null =
     workspace.setups.find((s) => s.id === activeSetupId) ?? null;
+
+  const unifiedProfile = workspace.profiles[workspace.settings.preferredGameVersion];
 
   const totalVersionsCount = workspace.setups.reduce(
     (sum, s) => sum + (s.versions?.length ?? 1),
@@ -179,7 +244,7 @@ export default function App() {
         <NavigationShell
           activeRoute={route}
           onNavigate={(next) => {
-            setShowWizard(null);
+            setShowWizard(false);
             setRoute(next);
           }}
           setupCount={workspace.setups.length}
@@ -208,17 +273,16 @@ export default function App() {
         >
           {showWizard ? (
             <SetupWizard
-              initialVersion={showWizard}
               onSaveProfile={async (profile) => {
                 const saved = await localStore.saveProfile(profile);
                 await refreshWorkspace();
                 return saved;
               }}
               onComplete={() => {
-                setShowWizard(null);
+                setShowWizard(false);
                 setRoute('home');
               }}
-              onCancel={() => setShowWizard(null)}
+              onCancel={() => setShowWizard(false)}
             />
           ) : (
             <>
@@ -228,15 +292,17 @@ export default function App() {
                   profiles={workspace.profiles}
                   folders={workspace.folders}
                   setups={workspace.setups}
-                  aiBrain={workspace.aiBrain}
-                  liveAiActivity={liveAiActivity}
                   onNavigate={setRoute}
                   onOpenFolder={(folderId) => {
                     setSelectedFolderId(folderId);
                     setRoute('setups');
                   }}
+                  onCreateFolder={async (name) => {
+                    await localStore.createFolder(name);
+                    await refreshWorkspace();
+                  }}
                   onOpenSetup={handleOpenSetup}
-                  onLaunchWizard={(gv) => setShowWizard(gv)}
+                  onLaunchWizard={() => setShowWizard(true)}
                 />
               )}
 
@@ -246,9 +312,19 @@ export default function App() {
                   initialCircuitId={workspace.settings.lastCircuitId}
                   folders={workspace.folders}
                   profiles={workspace.profiles}
+                  aiBrain={workspace.aiBrain}
+                  references={workspace.references}
                   circuitNotes={workspace.circuitNotes}
                   onSaveCircuitNote={async (cid, gv, note) => {
                     await localStore.saveCircuitNote(cid, gv, note);
+                    await refreshWorkspace();
+                  }}
+                  onRecordOnlineLearning={async (payload) => {
+                    await localStore.recordOnlineCircuitLearning(payload);
+                    await refreshWorkspace();
+                  }}
+                  onRecordAiFeedbackOutcome={async (payload) => {
+                    await localStore.recordAiFeedbackOutcome(payload);
                     await refreshWorkspace();
                   }}
                   onGenerateDraft={(payload) => localStore.generateSetupDraft(payload)}
@@ -262,10 +338,6 @@ export default function App() {
                     setActiveSetupId(created.id);
                     setDetailsInitialTab('setup');
                     setRoute('details');
-                  }}
-                  onEditProfile={(gv) => {
-                    setProfileInitialVersion(gv);
-                    setRoute('profile');
                   }}
                 />
               )}
@@ -302,6 +374,7 @@ export default function App() {
                   folders={workspace.folders}
                   profile={workspace.profiles[activeSetup.gameVersion]}
                   aiBrain={workspace.aiBrain}
+                  references={workspace.references}
                   initialTab={detailsInitialTab}
                   onToggleFavourite={handleToggleFavourite}
                   onUpdateSetup={async (setupId, patch) => {
@@ -312,8 +385,16 @@ export default function App() {
                     await localStore.submitFeedback(setupId, { tags, notes });
                     await refreshWorkspace();
                   }}
-                  onApplyAiTune={async (setupId, prompt) => {
-                    await localStore.applyAiTune(setupId, prompt);
+                  onApplyAiTune={async (setupId, prompt, precomputedDiagnosis) => {
+                    await localStore.applyAiTune(setupId, prompt, precomputedDiagnosis);
+                    await refreshWorkspace();
+                  }}
+                  onRecordOnlineLearning={async (payload) => {
+                    await localStore.recordOnlineCircuitLearning(payload);
+                    await refreshWorkspace();
+                  }}
+                  onRecordAiFeedbackOutcome={async (payload) => {
+                    await localStore.recordAiFeedbackOutcome(payload);
                     await refreshWorkspace();
                   }}
                   onRestoreVersion={async (setupId, versionNumber) => {
@@ -325,13 +406,12 @@ export default function App() {
 
               {route === 'profile' && (
                 <DrivingProfilePage
-                  initialVersion={profileInitialVersion}
-                  profiles={workspace.profiles}
+                  profile={unifiedProfile}
                   onSaveProfile={async (updated) => {
                     await localStore.saveProfile(updated);
                     await refreshWorkspace();
                   }}
-                  onLaunchWizard={(gv) => setShowWizard(gv)}
+                  onLaunchWizard={() => setShowWizard(true)}
                 />
               )}
 
@@ -354,6 +434,8 @@ export default function App() {
                 <SettingsPage
                   settings={workspace.settings}
                   storageStats={storageStats}
+                  aiBrain={workspace.aiBrain}
+                  learnerStatus={learnerStatus}
                   liveAiActivity={liveAiActivity}
                   stats={{
                     setupsCount: workspace.setups.length,
@@ -362,10 +444,12 @@ export default function App() {
                     referencesCount: workspace.references.length,
                     aiLearnedCount: workspace.aiBrain.learnedInteractions,
                   }}
+                  onOpenLibrary={() => setRoute('library')}
                   onSaveSettings={async (patch) => {
                     await localStore.saveSettings(patch);
                     await refreshWorkspace();
                   }}
+                  onTriggerLearnNow={() => runLiveLearningCycle(true)}
                   onRunAiOptimize={async () => {
                     const report = await localStore.runAiOptimization();
                     setWorkspace(report.nextState);

@@ -8,7 +8,7 @@
     "start": "NODE_ENV=production tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "tsx --test src/engine/engine.test.ts src/engine/parser.test.ts src/engine/setupAi.test.ts src/utils/ipaDownload.test.ts src/storage/localStore.test.ts src/storage/storageOptimizer.test.ts",
+    "test": "tsx --test src/engine/engine.test.ts src/engine/parser.test.ts src/engine/setupAi.test.ts src/engine/webResearch.test.ts src/utils/ipaDownload.test.ts src/storage/localStore.test.ts src/storage/storageOptimizer.test.ts",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },

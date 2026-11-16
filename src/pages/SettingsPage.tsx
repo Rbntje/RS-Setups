@@ -2,10 +2,15 @@ import React, { useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Activity,
+  BookOpen,
   Bot,
   CheckCircle2,
+  ChevronRight,
   Download,
+  Globe,
   HardDrive,
+  Loader2,
+  RefreshCw,
   RotateCcw,
   Save,
   Smartphone,
@@ -14,6 +19,8 @@ import {
 } from 'lucide-react';
 import type { GameVersion } from '../types/setup';
 import type { LocalAppSettings } from '../storage/localStore';
+import type { LocalAiBrain } from '../engine/setupAi';
+import { countLearnedCircuits } from '../engine/realtimeLearner';
 import {
   formatStorageBytes,
   type OptimizationReport,
@@ -25,6 +32,8 @@ import { IpaDownloadCard } from '../components/IpaDownloadCard';
 interface SettingsPageProps {
   settings: LocalAppSettings;
   storageStats: StorageBreakdown;
+  aiBrain: LocalAiBrain;
+  learnerStatus: 'idle' | 'learning' | 'paused' | 'offline';
   liveAiActivity: string;
   stats: {
     setupsCount: number;
@@ -33,7 +42,9 @@ interface SettingsPageProps {
     referencesCount: number;
     aiLearnedCount: number;
   };
+  onOpenLibrary: () => void;
   onSaveSettings: (patch: Partial<LocalAppSettings>) => Promise<void>;
+  onTriggerLearnNow: () => Promise<boolean>;
   onRunAiOptimize: () => Promise<OptimizationReport>;
   onExportBackup: () => Promise<string>;
   onImportBackup: (rawJson: string) => Promise<void>;
@@ -43,9 +54,13 @@ interface SettingsPageProps {
 export const SettingsPage: React.FC<SettingsPageProps> = ({
   settings,
   storageStats,
+  aiBrain,
+  learnerStatus,
   liveAiActivity,
   stats,
+  onOpenLibrary,
   onSaveSettings,
+  onTriggerLearnNow,
   onRunAiOptimize,
   onExportBackup,
   onImportBackup,
@@ -57,6 +72,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [reducedMotionOverride, setReducedMotionOverride] = useState<
     LocalAppSettings['reducedMotionOverride']
   >(settings.reducedMotionOverride);
+  const [learningManual, setLearningManual] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
@@ -153,13 +169,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   return (
     <div className="space-y-3.5">
-      <div className="px-0.5">
-        <h1 className="text-[22px] font-bold tracking-tight text-[#0A192F]">Settings</h1>
-        <p className="text-xs text-[#526581]">
-          Live on-device AI monitor, 200 MB phone storage cap &amp; .IPA download.
-        </p>
-      </div>
-
       {msg && (
         <div className="flex items-center gap-2 rounded-2xl border border-[#C6DAF7] bg-[#EBF3FF] p-3 text-xs font-medium text-[#0A2558]">
           <CheckCircle2 className="w-4 h-4 text-[#007AFF] shrink-0" />
@@ -172,7 +181,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       )}
 
-      {/* LIVE REAL-TIME CODED AI STATUS */}
+      {/* REAL-TIME ONLINE & ON-DEVICE AI LEARNING MONITOR */}
       <section className="ios-card rounded-[24px] p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -180,38 +189,213 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <Bot className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-[#0A192F]">RS Coded AI · Live</h2>
+              <h2 className="text-sm font-bold text-[#0A192F]">RS AI · Live Learning</h2>
               <div className="text-[11px] text-[#526581]">
-                {stats.aiLearnedCount} learned adjustment{stats.aiLearnedCount === 1 ? '' : 's'}
+                Learns from web locally on phone
               </div>
             </div>
           </div>
 
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Active
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+              learnerStatus === 'learning'
+                ? 'bg-[#EBF3FF] text-[#007AFF]'
+                : learnerStatus === 'offline'
+                  ? 'bg-amber-50 text-amber-700'
+                  : learnerStatus === 'paused'
+                    ? 'bg-[#F2F2F7] text-[#64748B]'
+                    : 'bg-emerald-50 text-emerald-700'
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                learnerStatus === 'learning'
+                  ? 'bg-[#007AFF] animate-ping'
+                  : learnerStatus === 'offline'
+                    ? 'bg-amber-500'
+                    : learnerStatus === 'paused'
+                      ? 'bg-[#94A3B8]'
+                      : 'bg-emerald-500 animate-pulse'
+              }`}
+            />
+            {learnerStatus === 'learning'
+              ? 'Fetching Web'
+              : learnerStatus === 'offline'
+                ? 'Offline'
+                : learnerStatus === 'paused'
+                  ? 'Paused'
+                  : 'Live'}
           </span>
         </div>
 
-        <div className="rounded-2xl bg-[#F2F2F7] p-3 flex items-start gap-2">
-          <Activity className="w-4 h-4 text-[#007AFF] shrink-0 mt-0.5" />
+        {/* Auto-Learn Online Toggle */}
+        <label className="flex items-center justify-between gap-3 rounded-2xl bg-[#F2F2F7] px-3 py-2.5 cursor-pointer">
           <div className="min-w-0">
-            <div className="text-[10.5px] font-bold text-[#64748B]">Real-Time Background Task</div>
-            <div className="text-xs font-semibold text-[#0A192F] leading-snug mt-0.5">
-              {liveAiActivity}
+            <div className="text-xs font-bold text-[#0A192F]">
+              Realtime Internet Learning
+            </div>
+            <div className="text-[10.5px] text-[#526581]">
+              Automatically reads online setups &amp; saves locally
             </div>
           </div>
+          <input
+            type="checkbox"
+            checked={settings.autoLearnOnline}
+            onChange={(e) => void onSaveSettings({ autoLearnOnline: e.target.checked })}
+            aria-label="Toggle realtime internet learning"
+            className="w-4 h-4 accent-[#007AFF] shrink-0"
+          />
+        </label>
+
+        {/* Learned Knowledge Stats */}
+        {(() => {
+          const { uniqueCircuits } = countLearnedCircuits(aiBrain);
+          const feedbackCount = (aiBrain.userFeedbackHistory ?? []).length;
+          return (
+            <div className="grid grid-cols-3 gap-1.5 text-center">
+              <div className="rounded-2xl bg-[#F2F2F7] py-2 px-1">
+                <div className="text-[10px] text-[#64748B]">Circuits</div>
+                <div className="font-mono-tabular text-xs font-bold text-[#007AFF]">
+                  {uniqueCircuits} / 24
+                </div>
+              </div>
+              <div className="rounded-2xl bg-[#F2F2F7] py-2 px-1">
+                <div className="text-[10px] text-[#64748B]">Your Feedback</div>
+                <div className="font-mono-tabular text-xs font-bold text-[#0A192F]">
+                  {feedbackCount} rule{feedbackCount === 1 ? '' : 's'}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-[#F2F2F7] py-2 px-1">
+                <div className="text-[10px] text-[#64748B]">Updates</div>
+                <div className="font-mono-tabular text-xs font-bold text-[#0A192F]">
+                  {stats.aiLearnedCount}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Current Live Activity & Real Web Learning Feed */}
+        <div className="rounded-2xl bg-[#F2F2F7] p-3 space-y-2.5">
+          <div className="flex items-start gap-2">
+            <Activity className="w-4 h-4 text-[#007AFF] shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <div className="text-[10.5px] font-bold text-[#64748B]">
+                Live Activity Right Now
+              </div>
+              <div className="text-xs font-semibold text-[#0A192F] leading-snug mt-0.5">
+                {liveAiActivity}
+              </div>
+            </div>
+          </div>
+
+          {(aiBrain.learningFeed ?? []).length > 0 && (
+            <div className="pt-2 border-t border-black/[0.06] space-y-2 max-h-48 overflow-y-auto pr-0.5">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-[#64748B]">
+                Recent Websites &amp; Local Learning Log
+              </div>
+              {(aiBrain.learningFeed ?? []).slice(0, 8).map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-xl bg-white px-2.5 py-2 border border-black/[0.05] space-y-1"
+                >
+                  <div className="flex items-center justify-between gap-2 text-[10.5px]">
+                    <span className="font-bold text-[#0A192F] truncate">
+                      {item.circuitName} ·{' '}
+                      {item.kind === 'web_learn'
+                        ? 'Web Learned'
+                        : item.kind === 'user_feedback'
+                          ? 'Your Feedback'
+                          : 'AI Tune'}
+                    </span>
+                    <span className="font-mono-tabular text-[#64748B] shrink-0">
+                      {new Date(item.timestamp).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-[#334155] leading-snug">{item.summary}</div>
+                  {item.domains && item.domains.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {item.domains.map((dom) => (
+                        <span
+                          key={dom}
+                          className="inline-flex items-center gap-1 rounded-md bg-[#EBF3FF] px-1.5 py-0.5 text-[9.5px] font-bold text-[#007AFF]"
+                        >
+                          <Globe className="w-2.5 h-2.5" />
+                          <span>{dom}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <button
-          type="button"
-          disabled={optimizing}
-          onClick={handleOptimize}
-          className="ios-press w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-[#EBF3FF] py-2.5 px-4 text-xs font-bold text-[#007AFF] hover:bg-[#DCEBFF] min-h-[42px] cursor-pointer"
-        >
-          <Sparkles className="w-4 h-4" />
-          <span>{optimizing ? 'Organizing AI Memory...' : 'AI Organize & Clean Memory'}</span>
-        </button>
+        {/* Locally Stored Learned Circuits */}
+        {Object.values(aiBrain.onlineCircuitKnowledge ?? {}).length > 0 && (
+          <div className="space-y-1.5">
+            <div className="text-[10.5px] font-bold text-[#526581]">
+              Stored Locally on Phone ({Object.values(aiBrain.onlineCircuitKnowledge ?? {}).length})
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+              {Object.values(aiBrain.onlineCircuitKnowledge ?? {})
+                .slice(0, 12)
+                .map((entry) => (
+                  <span
+                    key={entry.key}
+                    className="rounded-full bg-[#EBF3FF] px-2.5 py-1 text-[10px] font-semibold text-[#0B4F9E]"
+                  >
+                    {entry.circuitName} ({entry.gameVersion === 'f1_25_2026_pack' ? '26' : '25'}{' '}
+                    {entry.weather === 'wet' ? 'W' : 'D'}) · {entry.matchedParameterCount}p
+                  </span>
+                ))}
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            disabled={learningManual || learnerStatus === 'learning'}
+            onClick={async () => {
+              setLearningManual(true);
+              setMsg(null);
+              try {
+                const ok = await onTriggerLearnNow();
+                setMsg(
+                  ok
+                    ? 'AI fetched live web setup data and saved it locally.'
+                    : 'Offline or website unreachable right now — using local memory.'
+                );
+              } finally {
+                setLearningManual(false);
+              }
+            }}
+            className="ios-press inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#007AFF] py-2.5 px-3 text-xs font-bold text-white disabled:opacity-60 min-h-[42px] cursor-pointer"
+          >
+            {learningManual || learnerStatus === 'learning' ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3.5 h-3.5" />
+            )}
+            <span>Learn Web Now</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={optimizing}
+            onClick={handleOptimize}
+            className="ios-press inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#EBF3FF] py-2.5 px-3 text-xs font-bold text-[#007AFF] hover:bg-[#DCEBFF] min-h-[42px] cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{optimizing ? 'Cleaning...' : 'Optimize AI'}</span>
+          </button>
+        </div>
       </section>
 
       {/* 200 MB STORAGE BUDGET MONITOR */}
@@ -239,11 +423,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           />
         </div>
 
-        <p className="text-[11px] text-[#526581] leading-relaxed">
-          RS AI automatically deduplicates weights, merges duplicate logs, and archives stale
-          intermediate snapshots so phone storage never grows past 200 MB.
-        </p>
-
         <div className="grid grid-cols-3 gap-1.5 text-center">
           <div className="rounded-2xl bg-[#F2F2F7] py-2 px-1">
             <div className="text-[10px] text-[#64748B]">Setups ({stats.setupsCount})</div>
@@ -266,6 +445,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       </section>
 
+      {/* Setup Library Access Row */}
+      <button
+        type="button"
+        onClick={onOpenLibrary}
+        className="ios-card ios-press w-full rounded-[24px] p-4 flex items-center justify-between gap-3 text-left cursor-pointer"
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-2xl bg-[#EBF3FF] flex items-center justify-center text-[#007AFF] shrink-0">
+            <BookOpen className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-bold text-[#0A192F]">Setup Library</div>
+            <div className="text-[11px] text-[#526581]">
+              {stats.referencesCount} pasted community reference{stats.referencesCount === 1 ? '' : 's'}
+            </div>
+          </div>
+        </div>
+        <ChevronRight className="w-4 h-4 text-[#8E8E93] shrink-0" />
+      </button>
+
       {/* Install Phone App & Direct .IPA Download */}
       <section className="ios-card rounded-[24px] p-4 space-y-3">
         <div className="flex items-center gap-1.5">
@@ -282,9 +481,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         />
       </section>
 
-      {/* Simple App Preferences (Zero Accounts / Zero Wide Mode) */}
+      {/* Simple App Preferences */}
       <form onSubmit={handleSave} className="ios-card rounded-[24px] p-4 space-y-3">
-        <h2 className="text-sm font-bold text-[#0A192F]">App Preferences</h2>
+        <h2 className="text-sm font-bold text-[#0A192F]">Preferences</h2>
 
         <div>
           <label htmlFor="set-version" className="block text-[11px] font-semibold text-[#334155] mb-1">

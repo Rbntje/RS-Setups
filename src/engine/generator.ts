@@ -20,7 +20,8 @@ import {
   clampAndStep,
   formatParamValue,
 } from './specs';
-import { getTrackBiasKey, type LocalAiBrain } from './setupAi';
+import { getOnlineKnowledgeKey, getTrackBiasKey, type LocalAiBrain } from './setupAi';
+import type { WebResearchPayload } from './webResearch';
 
 export interface GenerateSetupInput {
   gameVersion: GameVersion;
@@ -34,6 +35,7 @@ export interface GenerateSetupInput {
   recentCircuitFeedback?: FeedbackTag[];
   circuitNote?: string;
   aiBrain?: LocalAiBrain;
+  liveWebPayload?: WebResearchPayload | null;
 }
 
 export interface GeneratedSetupOutput {
@@ -276,13 +278,38 @@ export function generateSetup(input: GenerateSetupInput): GeneratedSetupOutput {
     }
   }
 
+  // Blend in live or locally-learned online website consensus (max 28% influence, respecting driver stability)
+  const learnedOnlineEntry =
+    input.aiBrain?.onlineCircuitKnowledge?.[
+      getOnlineKnowledgeKey(gameVersion, circuit.id, weather)
+    ];
+  const onlineConsensusParams =
+    input.liveWebPayload?.ok && input.liveWebPayload.matchedParameterCount >= 6
+      ? input.liveWebPayload.consensusParameters
+      : learnedOnlineEntry && learnedOnlineEntry.matchedParameterCount >= 6
+        ? learnedOnlineEntry.consensusParameters
+        : null;
+
+  let onlineBlendedCount = 0;
+  if (onlineConsensusParams) {
+    const onlineBlend = sessionType === 'time_trial' ? 0.34 : profile.rearStability >= 7 ? 0.18 : 0.26;
+    for (const key of PARAMETER_ORDER) {
+      const ov = onlineConsensusParams[key];
+      if (typeof ov === 'number' && Number.isFinite(ov)) {
+        candidate[key] = candidate[key] * (1 - onlineBlend) + ov * onlineBlend;
+        onlineBlendedCount += 1;
+      }
+    }
+  }
+
   const parameters = normalizeAllParameters(candidate, gameVersion);
   const analysis = buildSetupAnalysis(
     parameters,
     input,
     circuit,
     matchingResearch,
-    aiWeightAppliedCount
+    aiWeightAppliedCount,
+    onlineBlendedCount
   );
 
   const versionTag = gameVersion === 'f1_25_2025' ? '2025 Spec' : '2026 Pack';
@@ -338,7 +365,8 @@ function buildSetupAnalysis(
   input: GenerateSetupInput,
   circuit: CircuitSpec,
   matchingResearch: ResearchResult[],
-  aiWeightAppliedCount = 0
+  aiWeightAppliedCount = 0,
+  onlineBlendedCount = 0
 ): SetupAnalysis {
   const { gameVersion, weather, sessionType, profile } = input;
   const compatibilityScore = computeCompatibilityScore(params, profile, circuit, weather, sessionType);
@@ -424,6 +452,12 @@ function buildSetupAnalysis(
     );
   }
 
+  if (onlineBlendedCount > 0) {
+    advantages.unshift(
+      `Cross-checked ${onlineBlendedCount} parameters against live fastest-driver online consensus safely blended with your driving profile.`
+    );
+  }
+
   if (aiWeightAppliedCount > 0 && input.aiBrain) {
     advantages.unshift(
       `Tuned by RS Coded AI using ${input.aiBrain.learnedInteractions} learned session${input.aiBrain.learnedInteractions === 1 ? '' : 's'} (${aiWeightAppliedCount} track/style parameter weights active).`
@@ -434,24 +468,37 @@ function buildSetupAnalysis(
     advantages.push(`Personal track note applied: "${input.circuitNote.trim().slice(0, 120)}"`);
   }
 
-  const sources: SetupSourceReference[] =
-    matchingResearch.length > 0
-      ? matchingResearch.map((r) => ({
-          title: r.title,
-          url: r.sourceUrl,
-          sourceType: r.sourceName,
-          collectedAt: r.collectedAt,
-          note: r.summary,
+  const liveSources: SetupSourceReference[] =
+    input.liveWebPayload?.ok && input.liveWebPayload.webSources.length > 0
+      ? input.liveWebPayload.webSources.slice(0, 3).map((ws) => ({
+          title: ws.title,
+          url: ws.url,
+          sourceType: `Live Web · ${ws.domain}`,
+          collectedAt: input.liveWebPayload!.fetchedAt,
+          note: ws.snippet,
         }))
-      : [
-          {
-            title: `RS Coded Setup AI (${is2026 ? '2026 Season Pack' : '2025 Cars'})`,
-            url: 'local://rs-setups/coded-ai-engine',
-            sourceType: '100% Custom-Coded TypeScript Physics & Adaptive Memory',
-            collectedAt: new Date().toISOString(),
-            note: 'Calculated 100% locally in custom TypeScript code from EA Sports F1 25 track demands, your driving profile, and your persistent on-device AI weights.',
-          },
-        ];
+      : [];
+
+  const sources: SetupSourceReference[] =
+    liveSources.length > 0
+      ? liveSources
+      : matchingResearch.length > 0
+        ? matchingResearch.map((r) => ({
+            title: r.title,
+            url: r.sourceUrl,
+            sourceType: r.sourceName,
+            collectedAt: r.collectedAt,
+            note: r.summary,
+          }))
+        : [
+            {
+              title: `RS Coded Setup AI (${is2026 ? '2026 Season Pack' : '2025 Cars'})`,
+              url: 'local://rs-setups/coded-ai-engine',
+              sourceType: '100% Custom-Coded TypeScript Physics & Adaptive Memory',
+              collectedAt: new Date().toISOString(),
+              note: 'Calculated locally from EA Sports F1 25 track demands, your driving profile, and persistent on-device AI weights.',
+            },
+          ];
 
   return {
     compatibilityScore,

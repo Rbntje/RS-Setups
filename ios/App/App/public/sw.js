@@ -90,10 +90,10 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "revision": "25f121ed31ebfd9dbf21f6cfa4002ccb"
   }, {
     "url": "index.html",
-    "revision": "3aaed05f04529143521486315e286d08"
+    "revision": "a2621a852542c18e4086eb53f6cf86e2"
   }, {
     "url": "icon.svg",
-    "revision": "308afaed9cff7dff5b76c30ef81c0b55"
+    "revision": "66e3e89cb9a888dae4a2fd71b433325e"
   }, {
     "url": "apple-touch-icon.png",
     "revision": "aa21fc6985382392d78a7bb79b42a87a"
@@ -101,17 +101,17 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "icons/ios-1024x1024.png",
     "revision": "b10b99085ca927f7943ff82c077a45ac"
   }, {
-    "url": "assets/index-Dp7Eqgch.css",
+    "url": "assets/index-B7OCnRWd.css",
     "revision": null
   }, {
-    "url": "assets/index-Cymuen4q.js",
+    "url": "assets/index-4w2aOGaW.js",
     "revision": null
   }, {
     "url": "apple-touch-icon.png",
     "revision": "aa21fc6985382392d78a7bb79b42a87a"
   }, {
     "url": "icon.svg",
-    "revision": "308afaed9cff7dff5b76c30ef81c0b55"
+    "revision": "66e3e89cb9a888dae4a2fd71b433325e"
   }, {
     "url": "pwa-192x192.png",
     "revision": "25f121ed31ebfd9dbf21f6cfa4002ccb"

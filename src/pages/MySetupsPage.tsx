@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   ArrowUpDown,
   ChevronRight,
@@ -154,34 +154,45 @@ export const MySetupsPage: React.FC<MySetupsPageProps> = ({
           </button>
         </div>
 
-        {showAddFolder && (
-          <form onSubmit={handleAddFolder} className="flex gap-2">
-            <input
-              type="text"
-              aria-label="New folder name"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              placeholder="Folder name (e.g. Spa Wet, League)..."
-              className="flex-1 min-w-0 rounded-2xl bg-[#F2F2F7] px-3 py-2 text-xs text-[#0A192F] min-h-[40px]"
-            />
-            <button
-              type="submit"
-              className="ios-press rounded-2xl bg-[#007AFF] px-3.5 py-2 text-xs font-bold text-white min-h-[40px] cursor-pointer shrink-0"
+        <AnimatePresence>
+          {showAddFolder && (
+            <motion.form
+              initial={{ opacity: 0, height: 0, y: -4 }}
+              animate={{ opacity: 1, height: 'auto', y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -4 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              onSubmit={handleAddFolder}
+              className="flex gap-2 overflow-hidden"
             >
-              Add
-            </button>
-          </form>
-        )}
+              <input
+                type="text"
+                aria-label="New folder name"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Folder name (e.g. Spa Wet, League)..."
+                className="flex-1 min-w-0 rounded-2xl bg-[#F2F2F7] px-3 py-2 text-xs text-[#0A192F] min-h-[40px]"
+              />
+              <motion.button
+                type="submit"
+                whileTap={{ scale: 0.95 }}
+                className="rounded-2xl bg-[#007AFF] px-3.5 py-2 text-xs font-bold text-white min-h-[40px] cursor-pointer shrink-0"
+              >
+                Add
+              </motion.button>
+            </motion.form>
+          )}
+        </AnimatePresence>
 
         {folderError && (
           <p className="text-[11px] font-medium text-red-600">{folderError}</p>
         )}
 
         <div className="flex flex-wrap gap-1.5">
-          <button
+          <motion.button
             type="button"
+            whileTap={{ scale: 0.94 }}
             onClick={() => onSelectFolder('all')}
-            className={`ios-press inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold cursor-pointer min-h-[34px] ${
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold cursor-pointer min-h-[34px] transition-colors ${
               selectedFolderId === 'all'
                 ? 'bg-[#007AFF] text-white shadow-sm'
                 : 'bg-[#F2F2F7] text-[#334155]'
@@ -189,20 +200,21 @@ export const MySetupsPage: React.FC<MySetupsPageProps> = ({
           >
             <span>All</span>
             <span className="font-mono-tabular text-[11px] opacity-80">{setups.length}</span>
-          </button>
+          </motion.button>
 
           {folders.map((folder) => {
             const count = setups.filter((s) => s.folderId === folder.id).length;
             const active = selectedFolderId === folder.id;
             return (
-              <button
+              <motion.button
                 key={folder.id}
                 type="button"
+                whileTap={{ scale: 0.94 }}
                 onClick={() => {
                   onSelectFolder(folder.id);
                   setRenamingFolderId(null);
                 }}
-                className={`ios-press inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold cursor-pointer min-h-[34px] ${
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold cursor-pointer min-h-[34px] transition-colors ${
                   active
                     ? 'bg-[#007AFF] text-white shadow-sm'
                     : 'bg-[#F2F2F7] text-[#334155]'
@@ -211,7 +223,7 @@ export const MySetupsPage: React.FC<MySetupsPageProps> = ({
                 <Folder className="w-3.5 h-3.5 shrink-0" />
                 <span>{folder.name}</span>
                 <span className="font-mono-tabular text-[11px] opacity-80">{count}</span>
-              </button>
+              </motion.button>
             );
           })}
         </div>

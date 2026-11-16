@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
 import { CheckCircle2, RefreshCw, Save } from 'lucide-react';
-import type { CornerPhase, DrivingProfile, GameVersion } from '../types/setup';
-import { GAME_VERSIONS } from '../engine/specs';
+import type { CornerPhase, DrivingProfile } from '../types/setup';
 
 interface DrivingProfilePageProps {
-  initialVersion?: GameVersion;
-  profiles: Record<GameVersion, DrivingProfile>;
+  profile: DrivingProfile;
   onSaveProfile: (profile: DrivingProfile) => Promise<void>;
-  onLaunchWizard: (gameVersion: GameVersion) => void;
+  onLaunchWizard: () => void;
 }
 
 const SLIDERS: Array<{
@@ -40,31 +37,24 @@ const SLIDERS: Array<{
 ];
 
 export const DrivingProfilePage: React.FC<DrivingProfilePageProps> = ({
-  initialVersion = 'f1_25_2025',
-  profiles,
+  profile,
   onSaveProfile,
   onLaunchWizard,
 }) => {
-  const [activeVersion, setActiveVersion] = useState<GameVersion>(initialVersion);
-  const [drafts, setDrafts] = useState<Record<GameVersion, DrivingProfile>>(profiles);
+  const [draft, setDraft] = useState<DrivingProfile>(profile);
   const [saving, setSaving] = useState(false);
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
-    setDrafts(profiles);
-  }, [profiles]);
-
-  const current = drafts[activeVersion];
+    setDraft(profile);
+  }, [profile]);
 
   const updateField = <K extends keyof DrivingProfile>(key: K, value: DrivingProfile[K]) => {
     setSavedNotice(null);
-    setDrafts((prev) => ({
+    setDraft((prev) => ({
       ...prev,
-      [activeVersion]: {
-        ...prev[activeVersion],
-        [key]: value,
-      },
+      [key]: value,
     }));
   };
 
@@ -74,10 +64,10 @@ export const DrivingProfilePage: React.FC<DrivingProfilePageProps> = ({
     setError(null);
     setSavedNotice(null);
     try {
-      await onSaveProfile(current);
-      setSavedNotice(`Saved ${GAME_VERSIONS[activeVersion].shortLabel} profile on this phone.`);
+      await onSaveProfile(draft);
+      setSavedNotice('Driving Style saved on this device.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save driving profile.');
+      setError(err instanceof Error ? err.message : 'Failed to save driving style.');
     } finally {
       setSaving(false);
     }
@@ -88,46 +78,17 @@ export const DrivingProfilePage: React.FC<DrivingProfilePageProps> = ({
       <div className="flex items-center justify-between gap-2 px-0.5">
         <div>
           <h1 className="text-[22px] font-bold tracking-tight text-[#0A192F]">Driving Style</h1>
-          <p className="text-xs text-[#526581]">Saved separately for 2025 &amp; 2026.</p>
+          <p className="text-xs text-[#526581]">Single unified profile used for all your setups.</p>
         </div>
 
         <button
           type="button"
-          onClick={() => onLaunchWizard(activeVersion)}
+          onClick={onLaunchWizard}
           className="ios-press inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-xs font-bold text-[#007AFF] shadow-sm min-h-[38px] cursor-pointer whitespace-nowrap"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          <span>Wizard</span>
+          <span>Quiz</span>
         </button>
-      </div>
-
-      {/* Animated iOS Segmented Version Toggle */}
-      <div className="grid grid-cols-2 gap-1 p-1 bg-[#E5E7EB]/85 rounded-2xl">
-        {(['f1_25_2025', 'f1_25_2026_pack'] as const).map((ver) => {
-          const active = activeVersion === ver;
-          return (
-            <button
-              key={ver}
-              type="button"
-              onClick={() => {
-                setActiveVersion(ver);
-                setSavedNotice(null);
-              }}
-              className={`relative z-0 px-3 py-2 text-xs font-bold rounded-xl cursor-pointer min-h-[38px] whitespace-nowrap transition-colors ${
-                active ? 'text-[#007AFF]' : 'text-[#526581]'
-              }`}
-            >
-              {active && (
-                <motion.span
-                  layoutId="profile-version-pill"
-                  transition={{ type: 'spring', stiffness: 460, damping: 34 }}
-                  className="absolute inset-0 rounded-xl bg-white shadow-sm -z-10"
-                />
-              )}
-              {GAME_VERSIONS[ver].shortLabel}
-            </button>
-          );
-        })}
       </div>
 
       {savedNotice && (
@@ -152,7 +113,7 @@ export const DrivingProfilePage: React.FC<DrivingProfilePageProps> = ({
                   {s.label}
                 </label>
                 <span className="font-mono-tabular text-xs font-bold text-[#007AFF] shrink-0">
-                  {current[s.key]}/10
+                  {draft[s.key]}/10
                 </span>
               </div>
               <input
@@ -161,7 +122,7 @@ export const DrivingProfilePage: React.FC<DrivingProfilePageProps> = ({
                 min={1}
                 max={10}
                 step={1}
-                value={current[s.key]}
+                value={draft[s.key]}
                 onChange={(e) => updateField(s.key, Number(e.target.value))}
                 className="w-full h-7 accent-[#007AFF] cursor-pointer"
               />
@@ -180,7 +141,7 @@ export const DrivingProfilePage: React.FC<DrivingProfilePageProps> = ({
             </label>
             <select
               id="understeer-phase"
-              value={current.understeerPhase}
+              value={draft.understeerPhase}
               onChange={(e) => updateField('understeerPhase', e.target.value as CornerPhase)}
               className="w-full rounded-2xl bg-[#F2F2F7] px-2.5 py-2 text-xs font-semibold text-[#0A192F] min-h-[42px]"
             >
@@ -197,7 +158,7 @@ export const DrivingProfilePage: React.FC<DrivingProfilePageProps> = ({
             </label>
             <select
               id="oversteer-phase"
-              value={current.oversteerPhase}
+              value={draft.oversteerPhase}
               onChange={(e) => updateField('oversteerPhase', e.target.value as CornerPhase)}
               className="w-full rounded-2xl bg-[#F2F2F7] px-2.5 py-2 text-xs font-semibold text-[#0A192F] min-h-[42px]"
             >
@@ -215,7 +176,7 @@ export const DrivingProfilePage: React.FC<DrivingProfilePageProps> = ({
           className="ios-press w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-4 py-3 text-sm font-bold text-white shadow-sm disabled:opacity-60 min-h-[46px] cursor-pointer"
         >
           <Save className="w-4 h-4" />
-          <span>{saving ? 'Saving...' : 'Save Local Profile'}</span>
+          <span>{saving ? 'Saving...' : 'Save Driving Style'}</span>
         </button>
       </form>
     </div>

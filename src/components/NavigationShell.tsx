@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 import {
-  BookOpen,
   ChevronLeft,
   Download,
   FolderKanban,
@@ -13,7 +12,6 @@ import {
   Settings,
   Sparkles,
 } from 'lucide-react';
-import { BrandMark } from './BrandMark';
 import { IpaDownloadCard } from './IpaDownloadCard';
 import { formatStorageBytes, type StorageBreakdown } from '../storage/storageOptimizer';
 
@@ -56,9 +54,9 @@ const TAB_ITEMS: Array<{
 ];
 
 const ROUTE_TITLES: Record<AppRoute, string> = {
-  home: 'RS Setups',
+  home: '',
   create: 'New Setup',
-  setups: 'Folders & Setups',
+  setups: 'Setups',
   details: 'Setup',
   profile: 'Driving Style',
   library: 'Library',
@@ -89,7 +87,7 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
     activeRoute === 'details'
       ? 'setups'
       : activeRoute === 'library'
-        ? 'home'
+        ? 'settings'
         : activeRoute;
 
   useEffect(() => {
@@ -100,7 +98,8 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
   }, [activeRoute, activeSetupId]);
 
   const showBackButton = activeRoute === 'details' || activeRoute === 'library';
-  const backTarget: AppRoute = activeRoute === 'details' ? 'setups' : 'home';
+  const backTarget: AppRoute = activeRoute === 'details' ? 'setups' : 'settings';
+  const isHome = activeRoute === 'home';
 
   const handleAdminOptimize = async () => {
     await onRunAdminOptimize();
@@ -126,15 +125,12 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
       <aside className="hidden lg:flex lg:flex-col lg:w-80 lg:shrink-0 lg:self-stretch lg:justify-between py-2">
         <div className="space-y-3.5">
           <div className="ios-card rounded-[26px] p-4 space-y-3">
-            <div className="flex items-center gap-3">
-              <BrandMark size="md" />
-              <div className="min-w-0">
-                <div className="text-base font-bold tracking-tight text-[#0A192F]">
-                  RS Setups
-                </div>
-                <div className="text-xs text-[#526581]">
-                  iPhone Edition · 100% On-Device
-                </div>
+            <div className="min-w-0">
+              <div className="text-lg font-extrabold tracking-tight text-[#0A192F]">
+                RS <span className="text-[#007AFF]">Setups</span>
+              </div>
+              <div className="text-xs text-[#526581]">
+                iPhone Edition · 100% On-Device
               </div>
             </div>
 
@@ -160,14 +156,12 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
             </div>
           </div>
 
-          {/* Direct .IPA Download inside the Website */}
           <IpaDownloadCard
             variant="sidebar"
             savedRepo={savedGithubRepo}
             onSaveRepo={onSaveGithubRepo}
           />
 
-          {/* Website Admin Controls (200 MB Cap + Real-Time AI + Backup) */}
           <div className="ios-card rounded-[26px] p-4 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A192F] min-w-0">
@@ -233,7 +227,7 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
               }`}
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>{confirmReset ? 'Tap Again to Wipe All' : 'Reset Garage to Scratch'}</span>
+              <span>{confirmReset ? 'Tap Again to Wipe All' : 'Reset Garage'}</span>
             </button>
           </div>
         </div>
@@ -243,143 +237,144 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
             const Icon = item.icon;
             const active = effectiveTab === item.id;
             return (
-              <button
+              <motion.button
                 key={item.id}
                 type="button"
+                whileTap={{ scale: 0.97 }}
                 onClick={() => onNavigate(item.id)}
-                className={`ios-press w-full flex items-center gap-2.5 px-3 py-2 rounded-2xl text-xs font-semibold transition-colors min-h-[38px] cursor-pointer ${
-                  active
-                    ? 'bg-[#007AFF] text-white shadow-sm'
-                    : 'text-[#334155] hover:bg-[#F2F2F7]'
+                className={`relative z-0 w-full flex items-center gap-2.5 px-3 py-2 rounded-2xl text-xs font-semibold transition-colors min-h-[38px] cursor-pointer ${
+                  active ? 'text-white' : 'text-[#334155] hover:bg-[#F2F2F7]'
                 }`}
               >
+                {active && (
+                  <motion.span
+                    layoutId="desktop-nav-pill"
+                    transition={{ type: 'spring', stiffness: 460, damping: 34 }}
+                    className="absolute inset-0 rounded-2xl bg-[#007AFF] shadow-sm -z-10"
+                  />
+                )}
                 <Icon className="w-4 h-4 shrink-0" />
                 <span>{item.label}</span>
-              </button>
+              </motion.button>
             );
           })}
         </nav>
       </aside>
 
-      {/* Center Stage: Always Phone Format (Full-screen on Mobile, 393px iPhone Frame on Desktop) */}
+      {/* Center Stage: Edge-to-Edge iPhone Canvas up through Dynamic Island */}
       <div className="w-full h-[100dvh] lg:w-[409px] lg:h-[min(844px,calc(100vh-28px))] lg:rounded-[52px] lg:p-[8px] lg:bg-gradient-to-b lg:from-[#27272A] lg:via-[#18181B] lg:to-[#09090B] lg:shadow-[0_36px_90px_-16px_rgba(10,25,47,0.45),0_0_0_1px_rgba(255,255,255,0.22)] shrink-0 flex flex-col">
         <div className="flex-1 flex flex-col min-h-0 ios-canvas lg:rounded-[44px] overflow-hidden relative">
-          {/* Desktop iPhone Dynamic Island & Status Bar */}
+          {/* Floating Transparent Status Bar & Dynamic Island (App UI flows completely behind top bezel) */}
           <div
-            className="hidden lg:flex items-center justify-between px-7 pt-3 pb-1 shrink-0 select-none"
+            className="hidden lg:flex items-center justify-between px-7 pt-3 pb-1 absolute top-0 inset-x-0 z-30 pointer-events-none select-none transition-colors text-[#0A192F]"
             aria-hidden="true"
           >
-            <span className="font-mono-tabular text-[11px] font-bold text-[#0A192F]">9:41</span>
+            <span className="font-mono-tabular text-[11px] font-bold">9:41</span>
             <motion.div
-              animate={{ width: activeRoute === 'create' ? 114 : 96 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-              className="h-[22px] rounded-full bg-[#09090B] flex items-center justify-end pr-2 shadow-inner"
+              animate={{
+                width: activeRoute === 'create' ? 116 : activeRoute === 'details' ? 106 : 96,
+              }}
+              transition={{ type: 'spring', stiffness: 360, damping: 26 }}
+              className="h-[24px] rounded-full bg-[#09090B] flex items-center justify-end pr-2 shadow-inner"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#007AFF] animate-pulse" />
             </motion.div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-[#0A192F]">5G</span>
+              <span className="text-[10px] font-bold">5G</span>
               <span className="inline-block w-4 h-2.5 rounded-[3px] border border-[#0A192F] p-[1px]">
-                <span className="block w-full h-full bg-[#0A192F] rounded-[1px]" />
+                <span className="block w-full h-full rounded-[1px] bg-[#0A192F]" />
               </span>
             </div>
           </div>
 
-          {/* Native iOS Translucent Top Navigation Bar */}
-          <header className="shrink-0 safe-pt px-4 pt-2 pb-2 bg-white/75 backdrop-blur-2xl border-b border-black/[0.06] z-20">
-            <div className="flex items-center justify-between gap-2 h-10">
-              {showBackButton ? (
-                <button
-                  type="button"
-                  onClick={() => onNavigate(backTarget)}
-                  className="ios-press inline-flex items-center gap-0.5 -ml-1.5 px-2 py-1.5 rounded-xl text-[13px] font-semibold text-[#007AFF] min-h-[40px] cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  <ChevronLeft className="w-4 h-4 stroke-[2.4]" />
-                  <span>Back</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => onNavigate('home')}
-                  className="ios-press inline-flex items-center gap-2 min-w-0 cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  <BrandMark size="sm" />
-                  <span className="text-[14px] font-bold tracking-tight text-[#0A192F]">
-                    RS Setups
-                  </span>
-                </button>
-              )}
-
-              <div className="text-[14px] font-semibold text-[#0A192F] truncate">
-                {activeRoute === 'home' ? '' : ROUTE_TITLES[activeRoute]}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => onNavigate(activeRoute === 'library' ? 'create' : 'library')}
-                aria-label={activeRoute === 'library' ? 'New Setup' : 'Open Setup Library'}
-                className="ios-press inline-flex items-center gap-1 rounded-full bg-[#EBF3FF] px-3 py-1.5 text-[12px] font-semibold text-[#007AFF] min-h-[34px] cursor-pointer whitespace-nowrap shrink-0"
-              >
-                {activeRoute === 'library' ? (
-                  <>
-                    <PlusCircle className="w-3.5 h-3.5" />
-                    <span>New</span>
-                  </>
+          {/* Sub-pages Translucent Liquid Glass Header extending all the way behind Dynamic Island */}
+          {!isHome && (
+            <header className="shrink-0 header-island-pt pb-2 px-4 bg-white/75 backdrop-blur-2xl border-b border-black/[0.06] z-20">
+              <div className="flex items-center justify-between gap-2 h-9">
+                {showBackButton ? (
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.94 }}
+                    onClick={() => onNavigate(backTarget)}
+                    className="inline-flex items-center gap-0.5 -ml-1.5 px-2 py-1 rounded-xl text-[13px] font-semibold text-[#007AFF] min-h-[36px] cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <ChevronLeft className="w-4 h-4 stroke-[2.4]" />
+                    <span>Back</span>
+                  </motion.button>
                 ) : (
-                  <>
-                    <BookOpen className="w-3.5 h-3.5" />
-                    <span>Library</span>
-                  </>
+                  <div className="w-12 shrink-0" aria-hidden="true" />
                 )}
-              </button>
-            </div>
-          </header>
 
-          {/* Animated Scrollable iPhone Viewport */}
+                <motion.h1
+                  key={activeRoute}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+                  className="text-[15px] font-bold tracking-tight text-[#0A192F] truncate"
+                >
+                  {ROUTE_TITLES[activeRoute]}
+                </motion.h1>
+
+                <div className="w-12 shrink-0" aria-hidden="true" />
+              </div>
+            </header>
+          )}
+
+          {/* Edge-to-Edge Scrollable Viewport (Home flows behind top bezel, all pages flow cleanly past dock) */}
           <main
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto phone-scroll px-3.5 pt-3 pb-5"
+            className={`flex-1 overflow-y-auto phone-scroll pb-24 ${
+              isHome ? 'px-3.5 pt-0' : 'px-3.5 pt-3'
+            }`}
           >
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={`${activeRoute}-${activeSetupId ?? 'none'}`}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-              >
-                {children}
-              </motion.div>
-            </AnimatePresence>
+            <motion.div
+              key={`${activeRoute}-${activeSetupId ?? 'none'}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {children}
+            </motion.div>
           </main>
 
-          {/* Native iOS Translucent Bottom 5-Tab Bar with Spring Pill */}
+          {/* Floating Liquid Glass iOS Dock */}
           <nav
-            className="shrink-0 safe-pb bg-white/85 backdrop-blur-2xl border-t border-black/[0.06] z-20"
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-30 safe-pb px-2.5 pb-2.5 lg:pb-2.5 pt-4 bg-gradient-to-t from-[#f2f2f7]/95 via-[#f2f2f7]/55 to-transparent"
             aria-label="Mobile navigation"
           >
-            <div className="grid grid-cols-5 items-center h-[60px] px-1.5">
+            <div className="pointer-events-auto rounded-[30px] bg-white/84 backdrop-blur-2xl border border-white/95 shadow-[0_14px_34px_-8px_rgba(10,25,47,0.22),inset_0_1px_0_rgba(255,255,255,1)] p-1 grid grid-cols-5 items-center gap-0.5">
               {TAB_ITEMS.map((item) => {
                 const Icon = item.icon;
                 const isActive = effectiveTab === item.id;
                 return (
-                  <button
+                  <motion.button
                     key={item.id}
                     type="button"
+                    whileHover={{ y: -1 }}
+                    whileTap={{ scale: 0.92 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 28 }}
                     onClick={() => onNavigate(item.id)}
                     aria-current={isActive ? 'page' : undefined}
-                    className={`ios-press relative flex flex-col items-center justify-center min-h-[46px] rounded-2xl cursor-pointer ${
+                    className={`relative z-0 flex flex-col items-center justify-center min-h-[54px] py-1.5 rounded-[26px] cursor-pointer transition-colors ${
                       isActive ? 'text-[#007AFF]' : 'text-[#8E8E93] hover:text-[#0A192F]'
                     }`}
                   >
                     {isActive && (
                       <motion.span
-                        layoutId="ios-tab-highlight"
-                        transition={{ type: 'spring', stiffness: 460, damping: 34 }}
-                        className="absolute inset-x-2 inset-y-1 rounded-2xl bg-[#007AFF]/10 -z-10"
+                        layoutId="ios-dock-pill"
+                        transition={{ type: 'spring', stiffness: 480, damping: 30 }}
+                        className="absolute inset-0 rounded-[25px] bg-gradient-to-b from-[#007AFF]/18 to-[#007AFF]/10 border border-[#007AFF]/22 shadow-[inset_0_1px_1px_rgba(255,255,255,0.85)] -z-10"
                       />
                     )}
-                    <Icon className={`w-[21px] h-[21px] ${isActive ? 'stroke-[2.3]' : 'stroke-[1.8]'}`} />
+                    <motion.div
+                      animate={{
+                        scale: isActive ? 1.12 : 1,
+                        y: isActive ? -1 : 0,
+                      }}
+                      transition={{ type: 'spring', stiffness: 460, damping: 22 }}
+                    >
+                      <Icon className={`w-[21px] h-[21px] ${isActive ? 'stroke-[2.3]' : 'stroke-[1.8]'}`} />
+                    </motion.div>
                     <span
                       className={`text-[10.5px] tracking-tight mt-0.5 whitespace-nowrap ${
                         isActive ? 'font-bold' : 'font-medium'
@@ -387,14 +382,14 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
                     >
                       {item.label}
                     </span>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
 
-            {/* iOS Home Indicator Bar inside Desktop iPhone Preview */}
-            <div className="hidden lg:flex items-center justify-center pb-1.5" aria-hidden="true">
-              <div className="w-32 h-1 rounded-full bg-black/25" />
+            {/* Subtle iOS Home Indicator */}
+            <div className="hidden lg:flex items-center justify-center pt-1.5" aria-hidden="true">
+              <div className="w-28 h-1 rounded-full bg-black/25" />
             </div>
           </nav>
         </div>

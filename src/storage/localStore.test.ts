@@ -88,3 +88,52 @@ test('localStore starts from scratch with 2025/2026 folders, saves edited drafts
   assert.equal(imported.setups[0].title, 'My Spa Wet Attack');
   assert.ok(imported.aiBrain.learnedInteractions >= 2);
 });
+
+test('localStore persists online circuit learning, AI feedback outcomes, and autoLearnOnline setting', async () => {
+  const store = createLocalStore(createMemoryAdapter());
+  const wsInitial = await store.loadWorkspace();
+  assert.equal(wsInitial.settings.autoLearnOnline, true);
+
+  await store.saveSettings({ autoLearnOnline: false });
+  const wsUpdated = await store.loadWorkspace();
+  assert.equal(wsUpdated.settings.autoLearnOnline, false);
+
+  const brainAfterWeb = await store.recordOnlineCircuitLearning({
+    weather: 'dry',
+    webPayload: {
+      ok: true,
+      circuitId: 'monza',
+      circuitName: 'Monza',
+      gameVersion: 'f1_25_2025',
+      metaUrl: 'https://www.f1laps.com/setups/tracks/monza/',
+      webSources: [
+        {
+          title: 'Monza F1 25 Setup',
+          url: 'https://www.f1laps.com/setups/monza',
+          domain: 'f1laps.com',
+          snippet: 'Low wing setup',
+        },
+      ],
+      consensusParameters: {
+        frontWingAero: 12,
+        rearWingAero: 10,
+      },
+      matchedParameterCount: 2,
+      driverConsensusNote: 'Ultra-low drag consensus',
+      sampleSizeNote: '1 source',
+      fetchedAt: new Date().toISOString(),
+    },
+  });
+  assert.ok(brainAfterWeb.onlineCircuitKnowledge?.['f1_25_2025:monza:dry']);
+  assert.equal(brainAfterWeb.learningFeed?.[0].kind, 'web_learn');
+
+  const brainAfterFeedback = await store.recordAiFeedbackOutcome({
+    gameVersion: 'f1_25_2025',
+    circuitId: 'monza',
+    prompt: 'More top speed',
+    outcome: 'too_slow',
+  });
+  assert.equal(brainAfterFeedback.userFeedbackHistory?.[0].outcome, 'too_slow');
+  assert.ok((brainAfterFeedback.trackBiases['f1_25_2025:monza']?.rearWingAero ?? 0) < 0);
+});
+

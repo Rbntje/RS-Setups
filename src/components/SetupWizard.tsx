@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ArrowLeft, ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
-import type { DrivingProfile, GameVersion } from '../types/setup';
-import { GAME_VERSIONS } from '../engine/specs';
+import type { DrivingProfile } from '../types/setup';
 import {
   DEFAULT_WIZARD_ANSWERS,
   buildProfileFromAnswers,
@@ -12,28 +11,24 @@ import {
 import { BrandMark } from './BrandMark';
 
 interface SetupWizardProps {
-  initialVersion?: GameVersion;
   onSaveProfile: (profile: DrivingProfile) => Promise<DrivingProfile>;
   onComplete: (profile: DrivingProfile) => void;
   onCancel?: () => void;
 }
 
 export const SetupWizard: React.FC<SetupWizardProps> = ({
-  initialVersion = 'f1_25_2025',
   onSaveProfile,
   onComplete,
   onCancel,
 }) => {
-  const [selectedVersion, setSelectedVersion] = useState<GameVersion>(initialVersion);
-  const [stepIndex, setStepIndex] = useState(-1);
+  const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<WizardAnswers>(DEFAULT_WIZARD_ANSWERS);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const visibleSteps = useMemo(() => getVisibleWizardSteps(answers), [answers]);
-  const currentStep = stepIndex >= 0 ? visibleSteps[stepIndex] : null;
-  const progressPct =
-    stepIndex < 0 ? 5 : Math.round(((stepIndex + 1) / visibleSteps.length) * 100);
+  const currentStep = visibleSteps[stepIndex];
+  const progressPct = Math.round(((stepIndex + 1) / visibleSteps.length) * 100);
 
   const handleNext = async () => {
     setError(null);
@@ -44,11 +39,11 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
 
     setSaving(true);
     try {
-      const built = buildProfileFromAnswers(answers, selectedVersion);
+      const built = buildProfileFromAnswers(answers, 'f1_25_2025');
       const saved = await onSaveProfile(built);
       onComplete(saved);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save driving profile.');
+      setError(err instanceof Error ? err.message : 'Could not save driving style.');
     } finally {
       setSaving(false);
     }
@@ -56,7 +51,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
 
   const handleBack = () => {
     setError(null);
-    if (stepIndex >= 0) {
+    if (stepIndex > 0) {
       setStepIndex((i) => i - 1);
     } else if (onCancel) {
       onCancel();
@@ -64,32 +59,30 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="liquid-glass rounded-3xl p-5">
+    <div className="space-y-4 pt-2">
+      <div className="ios-card rounded-[26px] p-5">
         {/* Header & Progress */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <BrandMark size="sm" />
             <div className="min-w-0">
               <div className="text-sm font-bold text-[#0A192F] truncate">
-                Driving Style Calibration
+                Calibrate Driving Style
               </div>
               <div className="text-xs text-[#526581]">
-                {stepIndex < 0
-                  ? 'Step 1 · Select Car Spec'
-                  : `Question ${stepIndex + 1} of ${visibleSteps.length}`}
+                Question {stepIndex + 1} of {visibleSteps.length}
               </div>
             </div>
           </div>
 
-          <div className="text-xs font-mono-tabular font-bold text-[#0B4F9E] shrink-0">
+          <div className="text-xs font-mono-tabular font-bold text-[#007AFF] shrink-0">
             {progressPct}%
           </div>
         </div>
 
-        <div className="mt-3.5 h-1.5 w-full rounded-full bg-[#DCE6F5] overflow-hidden">
+        <div className="mt-3.5 h-1.5 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
           <div
-            className="h-full bg-[#1D6FE8] transition-all duration-300 rounded-full"
+            className="h-full bg-[#007AFF] transition-all duration-300 rounded-full"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -100,56 +93,9 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
           </div>
         )}
 
-        {/* Step Body */}
-        <div className="mt-5 min-h-[300px] flex flex-col justify-between">
+        <div className="mt-5 min-h-[270px] flex flex-col justify-between">
           <AnimatePresence mode="wait">
-            {stepIndex < 0 ? (
-              <motion.div
-                key="welcome"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.16 }}
-              >
-                <h1 className="text-xl font-bold tracking-tight text-[#0A192F] text-balance">
-                  Calibrate your driving style
-                </h1>
-                <p className="mt-2 text-xs text-[#475569] leading-relaxed">
-                  Answer a quick 2-minute questionnaire so the on-device AI balances top speed,
-                  rear stability, and tyre wear for your exact driving feel. Saved on your phone.
-                </p>
-
-                <div className="mt-4 space-y-2.5">
-                  <div className="text-xs font-semibold text-[#334155]">
-                    Choose EA Sports F1 25 cars to calibrate
-                  </div>
-                  {(['f1_25_2025', 'f1_25_2026_pack'] as const).map((ver) => {
-                    const info = GAME_VERSIONS[ver];
-                    const active = selectedVersion === ver;
-                    return (
-                      <button
-                        key={ver}
-                        type="button"
-                        onClick={() => setSelectedVersion(ver)}
-                        className={`w-full rounded-2xl p-3.5 text-left border transition-all cursor-pointer min-h-[60px] ${
-                          active
-                            ? 'border-[#0B4F9E] bg-[#EBF3FF] shadow-sm'
-                            : 'border-[#D5E1F2] bg-white/80 hover:bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-bold text-[#0A192F]">{info.shortLabel}</span>
-                          {active && <CheckCircle2 className="w-4 h-4 text-[#0B4F9E] shrink-0" />}
-                        </div>
-                        <div className="mt-1 text-xs text-[#526581] leading-snug">
-                          {info.subtitle}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            ) : currentStep ? (
+            {currentStep && (
               <motion.div
                 key={currentStep.id}
                 initial={{ opacity: 0, x: 12 }}
@@ -168,7 +114,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                   <div className="mt-5">
                     <div className="flex items-center justify-between text-[11px] font-medium text-[#475569] mb-2.5">
                       <span>{currentStep.minLabel}</span>
-                      <span className="font-mono-tabular text-sm font-bold text-[#0B4F9E]">
+                      <span className="font-mono-tabular text-sm font-bold text-[#007AFF]">
                         {answers[currentStep.id] as number} / 10
                       </span>
                       <span>{currentStep.maxLabel}</span>
@@ -184,10 +130,10 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                               setAnswers((prev) => ({ ...prev, [currentStep.id]: num }))
                             }
                             aria-label={`Select ${num} out of 10`}
-                            className={`h-11 rounded-xl font-mono-tabular text-sm font-semibold transition-all active:scale-[0.97] cursor-pointer ${
+                            className={`ios-press h-11 rounded-2xl font-mono-tabular text-sm font-semibold cursor-pointer ${
                               selected
-                                ? 'bg-[#0B4F9E] text-white shadow-[0_6px_14px_rgba(11,79,158,0.28)]'
-                                : 'bg-white/85 border border-[#D4E2F5] text-[#334155] hover:border-[#1D6FE8]'
+                                ? 'bg-[#007AFF] text-white shadow-sm'
+                                : 'bg-[#F2F2F7] text-[#334155]'
                             }`}
                           >
                             {num}
@@ -197,7 +143,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-4 space-y-2.5">
+                  <div className="mt-4 space-y-2">
                     {currentStep.choices?.map((choice) => {
                       const active = answers[currentStep.id] === choice.value;
                       return (
@@ -210,15 +156,15 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                               [currentStep.id]: choice.value,
                             }))
                           }
-                          className={`w-full rounded-2xl p-3.5 text-left border transition-all cursor-pointer min-h-[54px] ${
+                          className={`ios-press w-full rounded-2xl p-3.5 text-left border cursor-pointer min-h-[54px] ${
                             active
-                              ? 'border-[#0B4F9E] bg-[#EBF3FF]'
-                              : 'border-[#D4E2F5] bg-white/85 hover:bg-white'
+                              ? 'border-[#007AFF] bg-[#EBF3FF]'
+                              : 'border-black/[0.06] bg-[#F2F2F7]/75'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-sm font-bold text-[#0A192F]">{choice.label}</span>
-                            {active && <CheckCircle2 className="w-4 h-4 text-[#0B4F9E] shrink-0" />}
+                            {active && <CheckCircle2 className="w-4 h-4 text-[#007AFF] shrink-0" />}
                           </div>
                           <div className="mt-1 text-xs text-[#526581]">{choice.detail}</div>
                         </button>
@@ -227,34 +173,33 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({
                   </div>
                 )}
               </motion.div>
-            ) : null}
+            )}
           </AnimatePresence>
 
-          {/* Footer Thumb Controls */}
-          <div className="mt-6 pt-4 border-t border-[#DCE6F5] flex items-center justify-between gap-2.5">
+          <div className="mt-6 pt-4 border-t border-black/[0.06] flex items-center justify-between gap-2.5">
             <button
               type="button"
               onClick={handleBack}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#CBD8EC] bg-white/85 px-4 py-2.5 text-xs font-semibold text-[#334155] hover:bg-white transition-colors min-h-[44px] cursor-pointer"
+              className="ios-press inline-flex items-center gap-1.5 rounded-2xl bg-[#F2F2F7] px-4 py-2.5 text-xs font-semibold text-[#334155] min-h-[44px] cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>{stepIndex < 0 ? 'Cancel' : 'Back'}</span>
+              <span>{stepIndex === 0 ? 'Cancel' : 'Back'}</span>
             </button>
 
             <button
               type="button"
               disabled={saving}
               onClick={handleNext}
-              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#0B4F9E] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(11,79,158,0.28)] hover:bg-[#093E7E] disabled:opacity-60 transition-colors min-h-[46px] cursor-pointer"
+              className="ios-press flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-4 py-2.5 text-sm font-bold text-white shadow-sm disabled:opacity-60 min-h-[46px] cursor-pointer"
             >
               {stepIndex === visibleSteps.length - 1 ? (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>{saving ? 'Saving...' : 'Save Driving Profile'}</span>
+                  <span>{saving ? 'Saving...' : 'Save Driving Style'}</span>
                 </>
               ) : (
                 <>
-                  <span>{stepIndex < 0 ? 'Start Calibration' : 'Continue'}</span>
+                  <span>Continue</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

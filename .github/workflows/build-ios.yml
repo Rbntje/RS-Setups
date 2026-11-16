@@ -9,6 +9,7 @@ on:
       - 'ios/**'
       - 'capacitor.config.ts'
       - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/build-ios.yml'
   workflow_dispatch:
 
@@ -30,7 +31,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Select Xcode
         run: |
@@ -38,7 +38,7 @@ jobs:
           xcodebuild -version
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Build web bundle for Capacitor
         env:
